@@ -1,0 +1,31 @@
+summary: Read RSS feed
+description: ''
+lock: '!inline u/peterernst/read_rss_feed.script.lock'
+cache_ttl: 300
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    id:
+      type: number
+      description: ''
+      default: null
+    feed_url:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    item_limit:
+      type: number
+      description: ''
+      default: null
+    last_scan:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - id
+    - feed_url
+    - item_limit

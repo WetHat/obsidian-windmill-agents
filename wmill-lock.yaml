@@ -1,0 +1,10 @@
+version: v2
+locks:
+  u/peterernst/mine_rss_feeds__flow/+__flow_hash: ee4070b2648e2329ff0f7d0877a7dfd9e7af0665b304719c564a94ede311721a
+  u/peterernst/mine_rss_feeds__flow/+elect_feeds.pg.sql: b4c3b142b6365164ddfd4f696b67a9b4124ec2d71a1d3bd3ba6064adcea93565
+  u/peterernst/mine_rss_feeds__flow+__flow_hash: f82ed3952210254f8e7c365e65d7cbb5748cc7adad756b019dff46c7aee5bad0
+  u/peterernst/mine_rss_feeds__flow+select_feeds.pg.sql: b4c3b142b6365164ddfd4f696b67a9b4124ec2d71a1d3bd3ba6064adcea93565
+  u/peterernst/mine_rss_feeds/a: 081e8f7372157731d392f7234df386120202876804ccf27c5f50b82036211ab2
+  u/peterernst/mine_rss_feeds/g: aed1ec57899c8f5d545de7a5f804b83b9df473bca584ee1d969e5c1753534f05
+  u/peterernst/mine_rss_feeds/j: 0499d2783ab2d700138ec703305556ce0fe2a6fae1b3978ae240132d98ecf4ac
+  u/peterernst/read_rss_feed: f0891fb077a18d6a9a5d6c04232b3c6cd27eb89cddf149c9e88de92d10a65ea5

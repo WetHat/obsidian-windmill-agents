@@ -1,0 +1,1 @@
+Select id, feed_url, item_limit, last_scan FROM rss_feeds

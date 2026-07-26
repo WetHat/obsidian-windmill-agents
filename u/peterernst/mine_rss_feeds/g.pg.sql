@@ -1,0 +1,1 @@
+SELECT id, scrape_article, feed_data FROM rss_feeds

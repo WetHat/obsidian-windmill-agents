@@ -1,0 +1,44 @@
+summary: Mine High-Signal RSS Items
+description: Get RSS Feeds filtered by reading value
+value:
+  modules:
+    - id: a
+      summary: Select Feeds
+      value:
+        type: rawscript
+        content: '!inline select_feeds.pg.sql'
+        input_transforms:
+          database:
+            type: static
+            value: datatable://rss
+        language: postgresql
+      continue_on_error: false
+    - id: b
+      summary: For each rss feed
+      value:
+        type: forloopflow
+        modules:
+          - id: c
+            value:
+              type: script
+              input_transforms:
+                feed_desc:
+                  type: javascript
+                  expr: flow_input.iter.value
+              hash: null
+              is_trigger: false
+              path: u/peterernst/read_rss_feed
+        iterator:
+          type: javascript
+          expr: results.a
+        parallel: false
+        skip_failures: true
+        squash: true
+  groups: []
+  same_worker: false
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
