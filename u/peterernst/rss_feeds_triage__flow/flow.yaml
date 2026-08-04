@@ -1,5 +1,6 @@
 summary: Scan RSS feeds for high reading-value items
-description: Get RSS Feeds filtered by reading value
+description: Scans all RSS feeds configured in the `rss_feeds` table and returns
+  new items with high reading value
 value:
   modules:
     - id: a
@@ -622,6 +623,7 @@ value:
         squash: true
   flow_env: {}
   groups: []
+  notes: []
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object

@@ -1,0 +1,55 @@
+summary: Scrape web-article
+description: Scrape the content of a web page using the Browserless service and
+  return its main article as Markdown
+value:
+  modules:
+    - id: a
+      summary: Build Browserless request
+      value:
+        type: script
+        input_transforms:
+          url:
+            type: javascript
+            expr: flow_input.url
+        is_trigger: false
+        path: u/peterernst/bld_browserless_request
+    - id: b
+      summary: Send POST Request (http)
+      value:
+        type: script
+        input_transforms:
+          body:
+            type: javascript
+            expr: results.a.body
+          headers:
+            type: javascript
+            expr: results.a.headers
+          url:
+            type: javascript
+            expr: results.a.browserlessURL
+        is_trigger: false
+        path: hub/11643/http/send_post_request
+    - id: c
+      summary: Extract article
+      value:
+        type: script
+        input_transforms:
+          response:
+            type: javascript
+            expr: results.b.text
+          status:
+            type: javascript
+            expr: results.b.status
+        is_trigger: false
+        path: u/peterernst/scrape_web_article/extract_article
+  groups: []
+schema:
+  order:
+    - url
+  properties:
+    url:
+      type: string
+      description: url of web page to scrape
+      default: ''
+      title: Url
+  required: []

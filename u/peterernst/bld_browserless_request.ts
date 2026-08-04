@@ -1,7 +1,7 @@
 //import * as wmill from "windmill-client";
 
 export async function main(url: string) {
-  const browserlessURL = new URL('http://localhost:3000/scrape');
+  const browserlessURL = new URL('http://browserless:3000/scrape');
   browserlessURL.searchParams.append('token', "6R0W53R135510");
   browserlessURL.searchParams.append('launch', '{"stealth":true,"headless":false}');
 

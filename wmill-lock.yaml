@@ -4,7 +4,7 @@ locks:
   f/lib/read_rss_feed: 2a190a2ab77a3456488d11abf259b57ce4c397b978103c2a59a1eec2981d3793
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
   f/lib/save_to_Inbox: be8c2628e3339626729dc8d0b25cef6dab671e65a670930109a324afe9bdb86e
-  u/peterernst/bld_browserless_request: 1bac88f30567ac292426f6043494d5b40912cb1013bc40f90668932d8f34b5d8
+  u/peterernst/bld_browserless_request: 4dc936a932e8489080625550c7f074858899bb3ec5c0ed37cd27e63372c5fdcf
   u/peterernst/drop_packet: 4b1059bc3b99d2e19001d8bf71382766ef4183f3e0ce08a3f3f359978002c705
   u/peterernst/mine_rss_feeds__flow/+__flow_hash: ee4070b2648e2329ff0f7d0877a7dfd9e7af0665b304719c564a94ede311721a
   u/peterernst/mine_rss_feeds__flow/+elect_feeds.pg.sql: b4c3b142b6365164ddfd4f696b67a9b4124ec2d71a1d3bd3ba6064adcea93565
@@ -35,3 +35,5 @@ locks:
   u/peterernst/Sandbox__flow+__flow_hash: dedf6344d302e10ac6695c49700004e86ebe5a6fcda2f4782494a320d3ef2838
   u/peterernst/Sandbox__flow+a.ts: 33d99b449df741aba6fea2c14c48d93daf48ae9f0a3bd13ab73b9941a4c6af59
   u/peterernst/Sandbox__flow+b.ts: f839daa712f42e68e477afe873967e157417a60409fef38eb5ba3236d6196c3a
+  u/peterernst/scrape_web_article__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+  u/peterernst/scrape_web_article/extract_article: 8958d074d797db3071ac64bedf07da80ee119c42efe436fa4ea970a6d19cff8b
