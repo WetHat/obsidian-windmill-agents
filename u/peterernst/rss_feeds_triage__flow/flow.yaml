@@ -83,7 +83,7 @@ value:
                               input_transforms:
                                 max_completion_tokens:
                                   type: static
-                                  value: 64000
+                                  value: 128000
                                 max_iterations:
                                   type: static
                                   value: 10
@@ -104,11 +104,11 @@ value:
                                       - expires
                                     properties:
                                       analyst_notes:
-                                        type: string
-                                        description: Notes and comments from the analysis agent
-                                        default: ''
-                                        nullable: false
-                                        title: Analyst Notes
+                                        type: array
+                                        description: Limitations, uncertainties, or meta‑observations about the article
+                                        default: []
+                                        items:
+                                          type: string
                                       domain_relevance:
                                         type: array
                                         description: 'Article relevance to subject matter domains '
@@ -256,28 +256,29 @@ value:
 
                                     \r
 
-                                    # Requirements\r
+                                    # Success Criteria\r
 
                                     - The provided article content is the sole
                                     authoritative source of truth for the
-                                    analysis.\r
+                                    analysis. Except for estimating the
+                                    expiration date (\"expiration\"), no
+                                    external knowledge or training data may be
+                                    used to supplement the content.\r
 
-                                    - Except for estimating the expiration date
-                                    (\"expiration\"), no external knowledge or
-                                    training data may be used to supplement the
-                                    content.\r
-
-                                    \r
-
-                                    # Success Criteria\r
-
-                                    - ONLY information explicitly present in
-                                    article content used (except for
-                                    'expires').\r
+                                    - Every domain from Subject Matter Domains
+                                    has been addressed in 'domain_relevance'.\r
 
                                     - Response is one valid JSON object that
                                     follows the requested schema and property
                                     semanitcs.\r
+
+                                    \r
+
+                                    # Contingencies\r
+
+                                    Content is missing/empty/too short to judge
+                                    -> score conservatively and state that
+                                    limitation\r
 
                                     \r
 
@@ -391,8 +392,6 @@ value:
                                     implementation, …). Useful for filtering
                                     between high-level summaries and deep dives
                                     |\r
-
-                                    \r
 
                                     - 'value': Axis discriminator specific
                                     score:\r
@@ -537,15 +536,7 @@ value:
                                     rationale for the expiration date as a
                                     separate item to 'analyst_notes'.\r
 
-                                    \r
-
-                                    # Contingencies\r
-
-                                    Content is missing/empty/too short to judge
-                                    -> score conservatively and state that
-                                    limitation\r
-
-                                    `"
+                                    \r\n"
                                 temperature:
                                   type: static
                                   value: 0
@@ -625,6 +616,7 @@ value:
         parallel: false
         skip_failures: true
         squash: true
+  flow_env: {}
   groups: []
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
