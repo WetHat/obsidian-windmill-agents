@@ -7,6 +7,68 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
+    analysis:
+      type: object
+      description: ''
+      default: null
+      format: resource-i_article_analysis
+      properties:
+        analyst_notes:
+          type: array
+          description: ''
+          items:
+            type: string
+          originalType: string[]
+        domain_relevance:
+          type: array
+          description: ''
+          format: resource-i_domain_relevance
+          items:
+            type: object
+            properties:
+              domain:
+                type: string
+                description: ''
+                originalType: string
+              relevance:
+                type: number
+                description: ''
+          originalType: record[]
+        expires:
+          type: string
+          description: ''
+          originalType: string
+        highlights:
+          type: array
+          description: ''
+          items:
+            type: string
+          originalType: string[]
+        reading_values:
+          type: array
+          description: ''
+          format: resource-i_reading_value
+          items:
+            type: object
+            properties:
+              value:
+                type: number
+                description: ''
+              axis:
+                type: string
+                description: ''
+                enum:
+                  - actionability
+                  - novelty
+                  - impact
+                  - rigor
+                  - depth
+                originalType: enum
+              rationale:
+                type: string
+                description: ''
+                originalType: string
+          originalType: record[]
     feed:
       type: object
       description: ''
@@ -21,3 +83,4 @@ schema:
   required:
     - feed
     - item
+    - analysis

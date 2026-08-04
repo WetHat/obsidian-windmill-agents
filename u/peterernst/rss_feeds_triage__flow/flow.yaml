@@ -109,6 +109,7 @@ value:
                                         default: []
                                         items:
                                           type: string
+                                        title: Analyst Notes
                                       domain_relevance:
                                         type: array
                                         description: 'Article relevance to subject matter domains '
@@ -200,7 +201,7 @@ value:
                                   type: static
                                   value:
                                     kind: openrouter
-                                    model: ~deepseek/deepseek-v4-flash-latest
+                                    model: deepseek/deepseek-v4-pro
                                     reasoning_effort: xhigh
                                     resource: $res:u/peterernst/openrouter_windmill
                                 streaming:
@@ -220,8 +221,11 @@ value:
 
                                     # Context\r
 
-                                    Your analysis will guide professionals and
+                                    - Your analysis will guide professionals and
                                     academics in prioritizing articles\r
+
+                                    - Style: Approachable, human-like, and
+                                    optimized for the target audience.\r
 
                                     \r
 
@@ -266,11 +270,8 @@ value:
                                     used to supplement the content.\r
 
                                     - Every domain from Subject Matter Domains
-                                    has been addressed in 'domain_relevance'.\r
-
-                                    - Response is one valid JSON object that
-                                    follows the requested schema and property
-                                    semanitcs.\r
+                                    has been fully addressed in
+                                    'domain_relevance'.\r
 
                                     \r
 
@@ -285,7 +286,7 @@ value:
                                     # Deliverables\r
 
                                     Exactly one JSON Object per the provided
-                                    schema and semantics defined below:\r
+                                    schema and semantics defined below.\r
 
                                     \r
 
@@ -536,7 +537,7 @@ value:
                                     rationale for the expiration date as a
                                     separate item to 'analyst_notes'.\r
 
-                                    \r\n"
+                                    `"
                                 temperature:
                                   type: static
                                   value: 0
@@ -566,6 +567,9 @@ value:
                             value:
                               type: script
                               input_transforms:
+                                analysis:
+                                  type: javascript
+                                  expr: results.p.output
                                 feed:
                                   type: javascript
                                   expr: results.c
