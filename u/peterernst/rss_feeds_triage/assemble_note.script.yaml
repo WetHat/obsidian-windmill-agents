@@ -1,0 +1,23 @@
+summary: Assemble Obsidian Note
+description: This script was edited in place of flow
+  u/peterernst/rss_feeds_triage  by peterernst.
+lock: '!inline u/peterernst/rss_feeds_triage/assemble_note.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    feed:
+      type: object
+      description: ''
+      default: null
+      format: resource-i_flyweight_feed
+    item:
+      type: object
+      description: ''
+      default: null
+      format: resource-i_item
+      originalType: string
+  required:
+    - feed
+    - item

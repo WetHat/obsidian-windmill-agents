@@ -1,29 +1,86 @@
 import * as wmill from "windmill-client"
-import { extract, FeedData, ReaderOptions, FeedEntry } from "@extractus/feed-extractor";
+import { createClient } from "redis";
+import { extract, FeedData, ReaderOptions } from "@extractus/feed-extractor";
+import { convert, ListIndentType, ConversionOptions } from "@xberg-io/html-to-markdown"
 
-type TAssetType = '?' | 'audio' | 'video' | 'image'; // type of asset
+/**
+ * html -> Markdown conversion options
+ */
+const OPTIONS: ConversionOptions = {
+  listIndentType: ListIndentType.Tabs,
+  listIndentWidth: 1,
+  compactTables: true,
+  defaultTitle: true,
+  extractMetadata: false,
+  includeDocumentStructure: false,
+  captureSvg: true,
+  inferDimensions: true,
+  stripTags: [
+    "style",
+    "script"
+  ]
+};
 
-interface IRssAsset {
+interface IFeed extends FeedData {
+  image?: IRssAsset;
+  tags: string[]; // a list of tags describing the feed.
+  scanned: string; // ISO date of item retrieval
+}
+
+export type TAssetType = '?' | 'audio' | 'video' | 'image';
+
+/**
+ * An RSS feed item (article). Extends a generic string-keyed map for Redis serialization.
+ */
+export interface IItem {
+  [key: string]: any; // index signature for Redis
+  /** Parent rss_table record id. */
+  feed_id: number;
+  /** Unique item identifier (e.g. GUID or URL hash). */
+  id: string;
+  /** Item title. */
+  title: string;
+  /** Link to the full article. */
+  link: string;
+  /** ISO 8601 publish date. */
+  published: string;
+  /** Short item description / summary. */
+  description: string;
+  /** One or more authors. */
+  authors: string[];
+  /** Tags / categories describing the item. */
+  tags: string[];
+  /** Full item content as Markdown. */
+  markdown: string;
+}
+
+export interface IRssAsset {
   src: string; // hyperlink to object
   type: TAssetType;
   width?: string; // optional embedding width
   height?: string; // optional embedding height
 }
 
-interface IFeed extends FeedData {
+/**
+ * Lightweight feed metadata (excludes full item bodies — items are stored separately in Redis).
+ */
+export interface IFlyweightFeed {
+  /** rss_table record id. */
+  id: number;
+  /** Feed title. */
+  title: string;
+  /** Link to feed site */
+  site: string;
+  /** Optional feed-level image / icon. */
   image?: IRssAsset;
-  tags: string[]; // a list of tags describing the feed.
-  items: IItem[];
-  scanned: string; // ISO date of item retrieval
-}
-
-interface IItem extends FeedEntry {
-  tags: string[]; // a list of tags describing the item.
-  published: string; // publish date
-  authors: string[]; // one or more authors
-  image?: IRssAsset; // The items image
-  media: IRssAsset[]; // A list of assets associated with the articles
-  content?: string; // Optional item content (in most cases a HTML fragment)
+  /** Tags / categories describing the feed. */
+  tags: string[];
+  /** Redis keys pointing to the feed's item objects. */
+  item_handles: string[];
+  /** ISO 8601 timestamp of the most recent item scan. */
+  scanned: string;
+  /** `true` if item content is short */
+  short_content: boolean;
 }
 
 //=====================
@@ -330,7 +387,7 @@ const READER_OPTIONS: ReaderOptions = {
  * 4. **Apply Item Limit**  
  *    Slices the normalized entries to `item_limit` and returns them.
  */
-export async function main(id: number, feed_url: string, item_limit: number, last_scan: string | null) {
+export async function main(id: number, feed_name: string, feed_url: string, item_limit: number, last_scan: string | null, short_content: boolean): Promise<IFlyweightFeed> {
   // 1. Fetch + parse RSS feed
   READER_OPTIONS.baseUrl = feed_url;
   const feed_data = await extract(feed_url, READER_OPTIONS) as IFeed;
@@ -342,19 +399,18 @@ export async function main(id: number, feed_url: string, item_limit: number, las
   entries = entries.slice(0, item_limit);
 
   let items: IItem[] = entries
-    .map((x: FeedEntry) => {
-      const i = x as IItem;
+    .map((x: Record<string, any>) => {
       const item: IItem = {
-        id: i.id,
-        title: i.title,
-        link: i.link,
-        authors: i.authors,
-        published: i.published,
-        media: [],
-        tags: i.tags
+        feed_id: id,
+        id: x.id,
+        title: x.title ?? "-",
+        description: x.description ?? "-",
+        link: x.link ?? "-",
+        authors: x.authors,
+        published: x.published,
+        tags: x.tags,
+        markdown: convert(x.content ?? "-", OPTIONS).content ?? "-",
       };
-      if (i.description) { item.description = i.description }
-      if (i.content) { item.content = i.content }
       return item;
     }) ?? [];
 
@@ -371,27 +427,40 @@ export async function main(id: number, feed_url: string, item_limit: number, las
     return pubdate >= cutoff;
   });
 
-  // 5. build the return object
-  const feed: IFeed = {
-    title: feed_data.title || feed_data.description || '',
-    tags: feed_data.tags,
-    items,
-    scanned: new Date().toISOString()
-  }
-  if (feed_data.image) { feed.image = feed_data.image };
-  if (feed_data.link) { feed.link = feed_data.link };
+  // 5. store item objects in Redis
+  const
+    client = createClient({ url: "redis://redis:6379" }),
+    item_handles: string[] = [];
 
+  await client.connect();
+
+  for (let i = 0; i < items.length; i++) {
+    const handle = `item_${id}_${i}`
+    item_handles.push(handle);
+
+    //await client.set(handle, JSON.stringify(items[i]));
+    await client.json.set(handle, "$", items[i]);
+  }
+
+  // 6. build the flyweight return object
+  const feed: IFlyweightFeed = {
+    id, // rss_feeds record id
+    title: feed_data.title || feed_name,
+    site: feed_data.link || "-",
+    tags: feed_data.tags,
+    scanned: new Date().toISOString(),
+    short_content,
+    item_handles,
+  }
+
+  if (feed_data.image) { feed.image = feed_data.image };
+
+  // 7. Update feed timestamp
   const sql = wmill.datatable('rss');
   await sql`
     UPDATE rss_feeds
-    SET feed_data = ${feed},
-        last_scan = CAST(${feed.scanned} AS timestamptz)
+    SET last_scan = CAST(${feed.scanned} AS timestamptz)
     WHERE id = ${id}`.execute();
-  // Usually too big for Windmill - must return as asset
-  return {
-    "table": "rss_feeds",
-    "id": id,
-    "item_count": feed.items.length,
-    "title": feed.title
-  };
+
+  return feed;
 }

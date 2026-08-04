@@ -1,0 +1,15 @@
+summary: Convert HTML to Markdown
+description: ''
+lock: '!inline f/lib/html_to_markdown.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    html:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - html

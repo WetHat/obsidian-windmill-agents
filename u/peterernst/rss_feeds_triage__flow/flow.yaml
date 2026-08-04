@@ -1,0 +1,634 @@
+summary: Scan RSS feeds for high reading-value items
+description: Get RSS Feeds filtered by reading value
+value:
+  modules:
+    - id: a
+      summary: Select RSS feeds
+      value:
+        type: script
+        input_transforms:
+          database:
+            type: static
+            value: datatable://rss
+        hash: null
+        is_trigger: false
+        path: u/peterernst/rss_feeds_triage/select_feeds
+    - id: b
+      summary: For each rss feed
+      value:
+        type: forloopflow
+        modules:
+          - id: c
+            summary: Read Feed
+            value:
+              type: script
+              input_transforms:
+                id:
+                  type: javascript
+                  expr: flow_input.iter.value.id
+                feed_name:
+                  type: javascript
+                  expr: flow_input.iter.value.name
+                feed_url:
+                  type: javascript
+                  expr: flow_input.iter.value.feed_url
+                item_limit:
+                  type: javascript
+                  expr: flow_input.iter.value.item_limit
+                last_scan:
+                  type: javascript
+                  expr: flow_input.iter.value.last_scan
+                short_content:
+                  type: javascript
+                  expr: flow_input.iter.value.short_content
+              is_trigger: false
+              path: f/lib/read_rss_feed
+          - id: d
+            summary: ''
+            value:
+              type: branchone
+              branches:
+                - summary: Feed is hot
+                  modules:
+                    - id: e
+                      summary: For each feed item
+                      value:
+                        type: forloopflow
+                        modules:
+                          - id: f
+                            summary: Dehydrate item
+                            value:
+                              type: script
+                              input_transforms:
+                                handle:
+                                  type: javascript
+                                  expr: flow_input.iter.value
+                              is_trigger: false
+                              path: u/peterernst/rss_feeds_triage/dehydrate_item
+                          - id: h
+                            summary: Select subject matter domains
+                            value:
+                              type: script
+                              input_transforms:
+                                database:
+                                  type: static
+                                  value: datatable://rss
+                              hash: 0b3f3c1e020e9d2e
+                              is_trigger: false
+                              path: u/peterernst/rss_feeds_triage/q
+                          - id: p
+                            summary: Article Analysis Agent
+                            value:
+                              type: aiagent
+                              input_transforms:
+                                max_completion_tokens:
+                                  type: static
+                                  value: 64000
+                                max_iterations:
+                                  type: static
+                                  value: 10
+                                memory:
+                                  type: static
+                                  value:
+                                    kind: off
+                                output_schema:
+                                  type: static
+                                  value:
+                                    $schema: https://json-schema.org/draft/2020-12/schema
+                                    type: object
+                                    order:
+                                      - highlights
+                                      - domain_relevance
+                                      - reading_values
+                                      - analyst_notes
+                                      - expires
+                                    properties:
+                                      analyst_notes:
+                                        type: string
+                                        description: Notes and comments from the analysis agent
+                                        default: ''
+                                        nullable: false
+                                        title: Analyst Notes
+                                      domain_relevance:
+                                        type: array
+                                        description: 'Article relevance to subject matter domains '
+                                        default: []
+                                        items:
+                                          type: object
+                                          properties:
+                                            domain:
+                                              type: string
+                                              description: Subject matter domain name
+                                              default: ''
+                                              nullable: false
+                                              title: Domain Name
+                                            relevance:
+                                              type: integer
+                                              description: Relevance to subject matter domain
+                                              default: 0
+                                              max: 3
+                                              min: 0
+                                              nullable: false
+                                              title: Relevance
+                                          required:
+                                            - domain
+                                            - relevance
+                                        nullable: false
+                                        title: Domain Relevance
+                                      expires:
+                                        type: string
+                                        description: ISO Date when the article is no longer relevant
+                                        default: ''
+                                        nullable: false
+                                        title: Expiration Date
+                                      highlights:
+                                        type: array
+                                        description: Article highlights
+                                        default: []
+                                        items:
+                                          type: string
+                                        title: Highlights
+                                      reading_values:
+                                        type: array
+                                        description: 'Article reading values. One for each axis enum value '
+                                        default: []
+                                        items:
+                                          type: object
+                                          properties:
+                                            value:
+                                              type: integer
+                                              description: Axis score
+                                              default: 0
+                                              max: 3
+                                              min: 0
+                                            axis:
+                                              type: string
+                                              description: Axis discriminator
+                                              default: ''
+                                              disableCreate: true
+                                              enum:
+                                                - actionability
+                                                - novelty
+                                                - impact
+                                                - rigor
+                                                - depth
+                                              enumLabels: {}
+                                              nullable: false
+                                            rationale:
+                                              type: string
+                                              description: A brief citation of specific elements from the content that justify
+                                                the value (1-2 sentences)
+                                              default: ''
+                                              title: Rationale
+                                          required:
+                                            - axis
+                                            - value
+                                            - rationale
+                                        length: 5
+                                        nullable: false
+                                        title: Reading Values
+                                    required:
+                                      - highlights
+                                      - domain_relevance
+                                      - reading_values
+                                      - analyst_notes
+                                      - expires
+                                output_type:
+                                  type: static
+                                  value: text
+                                provider:
+                                  type: static
+                                  value:
+                                    kind: openrouter
+                                    model: ~deepseek/deepseek-v4-flash-latest
+                                    reasoning_effort: xhigh
+                                    resource: $res:u/peterernst/openrouter_windmill
+                                streaming:
+                                  type: static
+                                  value: false
+                                system_prompt:
+                                  type: javascript
+                                  expr: "`# Primary Operation\r
+
+                                    Evaluate the relevance of an article to a
+                                    set of subject matter domains,\r
+
+                                    determine its reading value, and create a
+                                    structured JSON report.\r
+
+                                    \r
+
+                                    # Context\r
+
+                                    Your analysis will guide professionals and
+                                    academics in prioritizing articles\r
+
+                                    \r
+
+                                    Subject Matter Domains:\r
+
+                                    \r
+
+                                    | Domain | Tags |\r
+
+                                    | --- | --- |\r
+
+                                    ${results.h.map( ({domain,tags}) => `|
+                                    ${domain} | ${tags.join(',')}
+                                    |`).join('\\n') }\r
+
+                                    \r
+
+                                    # Input\r
+
+                                    A user message block containing an article
+                                    (Markdown) with frontmatter metadata:\r
+
+                                    - type: rssitem\r
+
+                                    - title: article title\r
+
+                                    - published: date when the article was
+                                    published\r
+
+                                    - tags: list of tags classifying the article
+                                    content\r
+
+                                    \r
+
+                                    # Requirements\r
+
+                                    - The provided article content is the sole
+                                    authoritative source of truth for the
+                                    analysis.\r
+
+                                    - Except for estimating the expiration date
+                                    (\"expiration\"), no external knowledge or
+                                    training data may be used to supplement the
+                                    content.\r
+
+                                    \r
+
+                                    # Success Criteria\r
+
+                                    - ONLY information explicitly present in
+                                    article content used (except for
+                                    'expires').\r
+
+                                    - Response is one valid JSON object that
+                                    follows the requested schema and property
+                                    semanitcs.\r
+
+                                    \r
+
+                                    # Deliverables\r
+
+                                    Exactly one JSON Object per the provided
+                                    schema and semantics defined below:\r
+
+                                    \r
+
+                                    ## 'highlights'\r
+
+                                    1-2 sentences, 1 line each. Each highlight
+                                    must:\r
+
+                                    - Quote or reference a **specific,
+                                    non‑obvious, decision‑relevant claim** from
+                                    the article. \r
+
+                                    - Capture **insight, tension, contradiction,
+                                    or impact**, not surface‑level restatements.
+                                    \r
+
+                                    - Be **semantically dense**: each highlight
+                                    should express _why the referenced claim
+                                    matters_.\r
+
+                                    - Avoid trivialities, summaries, or generic
+                                    statements.\r
+
+                                    - Avoid paraphrasing the article’s
+                                    introduction, section headers, or obvious
+                                    facts.\r
+
+                                    \r
+
+                                    ## 'domain_relevance'\r
+
+                                    One object per domain from Subject Matter
+                                    Domains. Each object must contain:\r
+
+                                    - 'domain': Exactly one name from Subject
+                                    Matter Domains\r
+
+                                    - 'relevance': Relevance score of the
+                                    article strictly based on its explicit
+                                    content, evaluated using the domain’s tags
+                                    as interpretive cues.\r
+
+                                    \  | Score | Meaning |\r
+
+                                    \  | --- | --- |\r
+
+                                    \  | 0 | irrelevant: No explicit content
+                                    related to this domain's tags |\r
+
+                                    \  | 1 | somewhat relevant: Article contains
+                                    minor or tangential content related to the
+                                    domain's tags |\r
+
+                                    \  | 2 | relevant: Article contains clear,
+                                    meaningful content aligned with the domain's
+                                    tags |\r
+
+                                    \  | 3 | highly relevant: Article directly
+                                    addresses core concepts of the domain;
+                                    multiple explicit elements match the
+                                    domain’s tags |\r
+
+                                    \r
+
+                                    ## 'reading_values'\r
+
+                                    Exactly 5 axis objects (one for each 'axis'
+                                    discriminator) describing article value,
+                                    each per semantics defined below:\r
+
+                                    - 'axis':\r
+
+                                    \  | Discriminator| Meaning|\r
+
+                                    \  | --- | --- |\r
+
+                                    \  | 'actionability' | Indicates how
+                                    directly the article enables a practitioner
+                                    to do something (implement, fix, optimize,
+                                    deploy, replicate). Useful for engineering
+                                    teams, RAG pipelines prioritizing “how‑to”
+                                    content, operational knowledge bases |\r
+
+                                    \  | 'novelty' | Indicates how new,
+                                    original, or forward‑moving the content is
+                                    relative to the domain’s current state.
+                                    Useful for research prioritization,
+                                    innovation scouting, competitive
+                                    intelligence |\r
+
+                                    \  | 'impact' | Indicates the potential of
+                                    the article’s ideas to influence practice,
+                                    research, or outcomes in the field. Useful
+                                    for strategic planning, prioritizing reading
+                                    lists, identifying high‑value content |\r
+
+                                    \  | 'rigor' | Indicates how well‑supported
+                                    the claims are. Separates speculative blog
+                                    posts from reproducible research |\r
+
+                                    \  | 'depth' | Indicates how deep the
+                                    article goes into the subject matter details
+                                    (e.g. mechanisms, math, architecture,
+                                    implementation, …). Useful for filtering
+                                    between high-level summaries and deep dives
+                                    |\r
+
+                                    \r
+
+                                    - 'value': Axis discriminator specific
+                                    score:\r
+
+                                    \  - 'relevance': Judgment is strictly based
+                                    on the information explicitly present in the
+                                    content. No inferred, or supplemented
+                                    details from prior knowledge or training
+                                    data. When evidence is ambiguous,
+                                    incomplete, or borderline, the agent MUST
+                                    choose the **lower** score.\r
+
+                                    \    | Score | Meaning |\r
+
+                                    \    | ----- | ------- |\r
+
+                                    \    | 0 | Irrelevant (Outside the domain or
+                                    only tangentially related) |\r
+
+                                    \    | 1 | Peripheral (Related but not
+                                    directly useful for the target domain(s))
+                                    |\r
+
+                                    \    | 2 | Relevant (Addresses the domain(s)
+                                    but not an exact task/problem) |\r
+
+                                    \    | 3 | Highly relevant(Directly
+                                    addresses the domain(s)) |\r
+
+                                    \  - 'actionability':\r
+
+                                    \    | Score | Meaning |\r
+
+                                    \    | ----- | ------- |\r
+
+                                    \    | 0 |  Not actionable: Pure theory,
+                                    commentary, opinion, or high‑level overview
+                                    |\r
+
+                                    \    | 1 | Low: Some conceptual guidance,
+                                    but no steps, code, or reproducible detail
+                                    |\r
+
+                                    \    | 2 |  Medium: Provides partial
+                                    procedures, examples, or pseudo‑code |\r
+
+                                    \    | 3 | High: Contains explicit steps,
+                                    code, configs, reproducible experiments, or
+                                    ready‑to‑apply patterns |\r
+
+                                    \  - 'novelty':\r
+
+                                    \    | Score | Meaning |\r
+
+                                    \    | ----- | ------- |\r
+
+                                    \    | 0 | Established knowledge:
+                                    Well‑known, standard, widely documented |\r
+
+                                    \    | 1 | Incremental: Minor improvements
+                                    or small variations on known ideas |\r
+
+                                    \    | 2 | Emerging: New techniques, early
+                                    research, or under‑documented methods |\r
+
+                                    \    | 3 | Cutting‑edge: Breakthroughs,
+                                    paradigm shifts, or first‑of‑its‑kind
+                                    results |\r
+
+                                    \  - 'impact':\r
+
+                                    \    | Score | Meaning |\r
+
+                                    \    | ----- | ------- |\r
+
+                                    \    | 0 |  Minimal: Niche or
+                                    low‑consequence insights |\r
+
+                                    \    | 1 | Local: Useful for a small subset
+                                    of practitioners |\r
+
+                                    \    | 2 | Field‑level: Likely to influence
+                                    common practices or tools |\r
+
+                                    \    | 3 | Transformative: Could reshape the
+                                    field or create new standards |\r
+
+                                    \  - 'rigor':\r
+
+                                    \    | Score | Meaning |\r
+
+                                    \    | ----- | ------- |\r
+
+                                    \    | 0 | Unsupported claims |\r
+
+                                    \    | 1 | Anecdotal evidence |\r
+
+                                    \    | 2 | Some empirical support |\r
+
+                                    \    | 3 | Strong, reproducible evidence
+                                    (data, benchmarks, citations) |\r
+
+                                    \  - 'depth':\r
+
+                                    \    | Score | Meaning |\r
+
+                                    \    | ----- | ------- |\r
+
+                                    \    | 0 | Surface-level overview |\r
+
+                                    \    | 1 | Moderate detail |\r
+
+                                    \    | 2 | Deep technical content |\r
+
+                                    \    | 3 | Highly technical, expert-level
+                                    depth |\r
+
+                                    - 'rationale': A brief citation of specific
+                                    elements from the content that justify the
+                                    score (1-2 sentences)\r
+
+                                    \r
+
+                                    ## 'analyst_notes'\r
+
+                                    Limitations, uncertainties, or
+                                    meta‑observations about the article (1–2
+                                    sentences each). Each note must specify
+                                    whether it is explicit or inferred\".\r
+
+                                    \r
+
+                                    ## 'expires'\r
+
+                                    The ISO date when the article’s information
+                                    is expected to become factually outdated,
+                                    superseded, or no longer useful based on the
+                                    article's frontmatter property 'published'
+                                    and domain‑specific update cycles (e.g.,
+                                    tech releases, policy changes, scientific
+                                    revisions, event timelines). Add the
+                                    rationale for the expiration date as a
+                                    separate item to 'analyst_notes'.\r
+
+                                    \r
+
+                                    # Contingencies\r
+
+                                    Content is missing/empty/too short to judge
+                                    -> score conservatively and state that
+                                    limitation\r
+
+                                    `"
+                                temperature:
+                                  type: static
+                                  value: 0
+                                user_attachments:
+                                  type: static
+                                  value: []
+                                user_message:
+                                  type: javascript
+                                  expr: "`---\r
+
+                                    type: rssitem\r
+
+                                    title: \"${results.f.title}\"\r
+
+                                    published: \"${results.f.published}\"\r
+
+                                    tags: [ ${results.f.tags.join(',')}]\r
+
+                                    ---\r
+
+                                    \r
+
+                                    ${results.f.markdown}`"
+                              tools: []
+                          - id: o
+                            summary: Assemble Note
+                            value:
+                              type: script
+                              input_transforms:
+                                feed:
+                                  type: javascript
+                                  expr: results.c
+                                item:
+                                  type: javascript
+                                  expr: results.f
+                              is_trigger: false
+                              path: u/peterernst/rss_feeds_triage/assemble_note
+                          - id: g
+                            summary: Item -> Inbox
+                            value:
+                              type: script
+                              input_transforms:
+                                content:
+                                  type: javascript
+                                  expr: results.o.note
+                                extension:
+                                  type: static
+                                  value: md
+                                filename:
+                                  type: javascript
+                                  expr: results.o.filename
+                                vault:
+                                  type: static
+                                  value: WetHat Lab
+                              is_trigger: false
+                              path: f/lib/save_to_Inbox
+                        iterator:
+                          type: javascript
+                          expr: results.c.item_handles
+                        parallel: false
+                        skip_failures: true
+                        squash: true
+                  expr: results.c.item_handles.length > 0
+                  parallel: true
+                  skip_failure: true
+              default:
+                - id: m
+                  summary: Drop cold feed
+                  value:
+                    type: script
+                    input_transforms: {}
+                    is_trigger: false
+                    path: u/peterernst/drop_packet
+        iterator:
+          type: javascript
+          expr: results.a
+        parallel: false
+        skip_failures: true
+        squash: true
+  groups: []
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

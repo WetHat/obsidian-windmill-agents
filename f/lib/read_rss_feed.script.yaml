@@ -1,6 +1,6 @@
 summary: Read RSS feed
 description: ''
-lock: '!inline u/peterernst/read_rss_feed.script.lock'
+lock: '!inline f/lib/read_rss_feed.script.lock'
 cache_ttl: 300
 kind: script
 schema:
@@ -11,6 +11,11 @@ schema:
       type: number
       description: ''
       default: null
+    feed_name:
+      type: string
+      description: ''
+      default: null
+      originalType: string
     feed_url:
       type: string
       description: ''
@@ -25,7 +30,13 @@ schema:
       description: ''
       default: null
       originalType: string
+    short_content:
+      type: boolean
+      description: ''
+      default: null
   required:
     - id
+    - feed_name
     - feed_url
     - item_limit
+    - short_content

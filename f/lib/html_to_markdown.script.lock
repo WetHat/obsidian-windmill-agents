@@ -1,0 +1,32 @@
+{
+  "dependencies": {
+    "@xberg-io/html-to-markdown": "latest"
+  }
+}
+//bun.lock
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "@xberg-io/html-to-markdown": "latest",
+      },
+    },
+  },
+  "packages": {
+    "@xberg-io/html-to-markdown": ["@xberg-io/html-to-markdown@3.10.1", "", { "optionalDependencies": { "@xberg-io/html-to-markdown-darwin-arm64": "3.10.1", "@xberg-io/html-to-markdown-darwin-x64": "3.10.1", "@xberg-io/html-to-markdown-linux-arm64-gnu": "3.10.1", "@xberg-io/html-to-markdown-linux-arm64-musl": "3.10.1", "@xberg-io/html-to-markdown-linux-x64-gnu": "3.10.1", "@xberg-io/html-to-markdown-linux-x64-musl": "3.10.1", "@xberg-io/html-to-markdown-win32-arm64-msvc": "3.10.1", "@xberg-io/html-to-markdown-win32-x64-msvc": "3.10.1" } }, "sha512-7O4d+gQ3w+960rd87Ntl2oW/w6OwAHvpjoSSHG2UzGdIwpcsyasva5odBbBgZ94pIUh10nbHEnYn+9m4pHIMhQ=="],
+
+    "@xberg-io/html-to-markdown-darwin-arm64": ["@xberg-io/html-to-markdown-darwin-arm64@3.10.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-+x55lnvVnHQeD4C/7zAfDSjFe59A2spub9pOHzw3Rpql5Dih52L5+Z9Pj06gNEx5e5Eilm/vxKCj2C3pmQe5CA=="],
+
+    "@xberg-io/html-to-markdown-darwin-x64": ["@xberg-io/html-to-markdown-darwin-x64@3.10.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-WfmvRvCouRLMd+Ae7syjZ5IRGih50Q3cmqGQwEWfrhiaMIC1t8BLPSCDPfxvQ7OIATkh2P/faJ9bLTa/koZoPA=="],
+
+    "@xberg-io/html-to-markdown-linux-arm64-gnu": ["@xberg-io/html-to-markdown-linux-arm64-gnu@3.10.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-slxIR0EvXY/pkZ+Sxvq7jl92aplVUUfRvnJsbr+TdcE/u6F3MV1UJ2mq3ELG74xUNDtJ5SxzEpdXIhNW2FVB2A=="],
+
+    "@xberg-io/html-to-markdown-linux-x64-gnu": ["@xberg-io/html-to-markdown-linux-x64-gnu@3.10.1", "", { "os": "linux", "cpu": "x64" }, "sha512-KC0qfQSW123Q8H58fP5bzDq47/gN28j4CqxuRR3fkrWjIKf0z0cc2bGomcJ3/HCrYp19PsfR/Nh4Zmo2hdQdRQ=="],
+
+    "@xberg-io/html-to-markdown-win32-arm64-msvc": ["@xberg-io/html-to-markdown-win32-arm64-msvc@3.10.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-ZG4HhogY/Pv0HkFARWJoyNv7s76d1//ocMXDW5mb0IIhtXIjDoxXU5oe764nrx3RTQs7YflJaJohSWHfbaPVyQ=="],
+
+    "@xberg-io/html-to-markdown-win32-x64-msvc": ["@xberg-io/html-to-markdown-win32-x64-msvc@3.10.1", "", { "os": "win32", "cpu": "x64" }, "sha512-t8s11nhTYSaY5TpMN74SS6cvtXN417syoeYqt1XeYhH+TU4LBcVziwHM5HKGiibfjh5/0gqrEKOXhEswV5RQeA=="],
+  }
+}

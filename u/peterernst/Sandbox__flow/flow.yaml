@@ -1,0 +1,32 @@
+summary: ''
+description: ''
+value:
+  modules:
+    - id: a
+      value:
+        type: rawscript
+        content: '!inline a.ts'
+        input_transforms:
+          a:
+            type: static
+            value:
+              - Hello
+              - otto
+              - oma
+          b:
+            type: static
+            value: 5
+        lock: '!inline a.lock'
+        language: bun
+    - id: b
+      value:
+        type: rawscript
+        content: '!inline b.ts'
+        input_transforms:
+          x:
+            type: javascript
+            expr: "`${results.a.a.map(s=>'| ' + s + ' |').join('\\t')} ---- ${results.a.b}`"
+        lock: '!inline b.lock'
+        language: bun
+  groups: []
+schema: {}

@@ -1,0 +1,33 @@
+summary: Write content to a vault's Inbox
+description: Save a file into a vault inbox
+lock: '!inline f/lib/save_to_Inbox.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    content:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    extension:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    filename:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    vault:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - vault
+    - filename
+    - extension
+    - content

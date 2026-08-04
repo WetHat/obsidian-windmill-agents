@@ -1,15 +1,16 @@
 summary: Build browserless request
 description: This script was edited in place of flow
   u/peterernst/mine_rss_feeds  by peterernst.
+lock: '!inline u/peterernst/bld_browserless_request.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
-    x:
+    url:
       type: string
       description: ''
       default: null
       originalType: string
   required:
-    - x
+    - url
