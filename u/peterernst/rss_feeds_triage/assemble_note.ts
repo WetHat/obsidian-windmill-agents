@@ -68,7 +68,11 @@ ${analysis.reading_values.map(v => `| ${v.axis} |${INDICATORS[v.value]} | ${v.ra
 
 # Analyst Notes
 
+${analysis.analyst_notes.map(n => '- ' + n).join(`\n`)}
+
 - - -
+
+# ${item.title}
 
 ${item.markdown}
 

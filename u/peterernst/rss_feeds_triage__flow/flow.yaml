@@ -76,7 +76,7 @@ value:
                               hash: 0b3f3c1e020e9d2e
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/q
-                          - id: p
+                          - id: i
                             summary: Article Analysis Agent
                             value:
                               type: aiagent
@@ -562,14 +562,14 @@ value:
 
                                     ${results.f.markdown}`"
                               tools: []
-                          - id: o
+                          - id: k
                             summary: Assemble Note
                             value:
                               type: script
                               input_transforms:
                                 analysis:
                                   type: javascript
-                                  expr: results.p.output
+                                  expr: results.i.output
                                 feed:
                                   type: javascript
                                   expr: results.c
@@ -585,13 +585,13 @@ value:
                               input_transforms:
                                 content:
                                   type: javascript
-                                  expr: results.o.note
+                                  expr: results.k.note
                                 extension:
                                   type: static
                                   value: md
                                 filename:
                                   type: javascript
-                                  expr: results.o.filename
+                                  expr: results.k.filename
                                 vault:
                                   type: static
                                   value: WetHat Lab
