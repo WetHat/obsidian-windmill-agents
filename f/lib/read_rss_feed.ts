@@ -1,25 +1,44 @@
 import * as wmill from "windmill-client"
 import { createClient } from "redis";
-import { extract, FeedData, ReaderOptions } from "@extractus/feed-extractor";
-import { convert, ListIndentType, ConversionOptions } from "@xberg-io/html-to-markdown"
+import { extract, extractFromXml, FeedData, ParserOptions } from "@extractus/feed-extractor";
 
 /**
- * html -> Markdown conversion options
+ * Metadata describing an RSS feed configuration.
+ *
+ * Represents the static properties required to read, limit, and process
+ * a feed during ingestion. This structure is typically provided as input
+ * to the RSS scanning flow.
  */
-const OPTIONS: ConversionOptions = {
-  listIndentType: ListIndentType.Tabs,
-  listIndentWidth: 1,
-  compactTables: true,
-  defaultTitle: true,
-  extractMetadata: false,
-  includeDocumentStructure: false,
-  captureSvg: true,
-  inferDimensions: true,
-  stripTags: [
-    "style",
-    "script"
-  ]
-};
+export interface IFeedMeta {
+  /**
+   * Feed ID in the rss_feeds table.
+   */
+  id: number,
+  /**
+   * Human‑readable name of the feed.
+   * Example: "Ars Technica – AI"
+   */
+  feed_name: string,
+  /**
+   * URL of the RSS or Atom feed.
+   * Must be a valid HTTP/HTTPS URL.
+   */
+  feed_url: string,
+  /**
+   * Maximum number of items to retrieve from the feed.
+   * Used to cap ingestion for large feeds.
+   */
+  item_limit: number,
+  /**
+   * ISO timestamp of the last successful scan.
+   * If null, the feed has never been scanned.
+   */
+  last_scan: string | null,
+  /**
+   * Indicates whether the feed items have short summaries only.
+   */
+  short_content: boolean
+}
 
 interface IFeed extends FeedData {
   image?: IRssAsset;
@@ -36,6 +55,12 @@ export interface IItem {
   [key: string]: any; // index signature for Redis
   /** Parent rss_table record id. */
   feed_id: number;
+  /** Human readable title of the feed */
+  feed_title: string;
+  /** Url of website or blog the feed is for */
+  site_link: string;
+  /** Index of the item describing its position in the feed */
+  item_index: number;
   /** Unique item identifier (e.g. GUID or URL hash). */
   id: string;
   /** Item title. */
@@ -50,8 +75,8 @@ export interface IItem {
   authors: string[];
   /** Tags / categories describing the item. */
   tags: string[];
-  /** Full item content as Markdown. */
-  markdown: string;
+  /** Item content as HTML fragment. */
+  content: string;
 }
 
 export interface IRssAsset {
@@ -289,7 +314,7 @@ function assembleLink(elem: Record<string, unknown>): string | null {
 
 // ====================
 
-const READER_OPTIONS: ReaderOptions = {
+const READER_OPTIONS: ParserOptions = {
   normalization: true,
   useISODateFormat: true,
   getExtraFeedFields: (feed_data: Record<string, unknown>): Record<string, unknown> => {
@@ -314,7 +339,6 @@ const READER_OPTIONS: ReaderOptions = {
     let { id, guid } = entry_data as any;
     id = id || guid?.["#text"] || entry_data.link
 
-
     const link = assembleLink(entry_data);
     if (link) {
       entry_data.link = link;
@@ -335,7 +359,11 @@ const READER_OPTIONS: ReaderOptions = {
     }
 
     const content: any = entry_data["content:encoded"] || entry_data.content || entry_data["dc:content"];
-    entry_data.content = typeof content === "string" ? content : content["#text"] as string;
+    if (content) {
+      entry_data.content = (typeof content === "string" ? content : content["#text"]) ?? entry_data.description as string;
+    } else {
+      entry_data.content = entry_data.description
+    }
 
     let title = entry_data.title as any;
     if (!title) {
@@ -349,118 +377,115 @@ const READER_OPTIONS: ReaderOptions = {
   },
 };
 
-/**
- * Ingests an RSS/Atom feed, normalizes its entries, and returns a list of
- * structured `IItem` objects suitable for downstream processing in Windmill.
- *
- * @param {number} id
- *   Database identifier of the RSS feed from the `rss_feeds` table.
- *
- * @param {string} feed_url
- *   URL of the RSS/Atom feed to fetch. Used both for retrieval and as the
- *   `baseUrl` for resolving relative links inside feed entries.
- *
- * @param {number} item_limit
- *   Maximum number of normalized feed items to return.
- *
- * @param {string} last_scan
- *   ISO timestamp of the previous scan. Included to filter new items.
- *
- * @returns 
- *   A promise resolving to an dataase descriptor for the RSS feed.
- *
- * @description
- * The function performs four main tasks:
- *
- * 1. **Configure Reader Options**  
- *    Sets `READER_OPTIONS.baseUrl = feed_url` so relative URLs inside the feed
- *    resolve correctly.
- *
- * 2. **Fetch & Parse Feed**  
- *    Uses `extract(feed_url, READER_OPTIONS)` to retrieve and parse the feed
- *    into an `IFeed` structure.
- *
- * 3. **Normalize Entries**  
- *    Ensures `feed_data.entries` is an array and maps each raw entry through a
- *    normalization pipeline.
- * 
- * 4. **Apply Item Limit**  
- *    Slices the normalized entries to `item_limit` and returns them.
- */
-export async function main(id: number, feed_name: string, feed_url: string, item_limit: number, last_scan: string | null, short_content: boolean): Promise<IFlyweightFeed> {
-  // 1. Fetch + parse RSS feed
-  READER_OPTIONS.baseUrl = feed_url;
-  const feed_data = await extract(feed_url, READER_OPTIONS) as IFeed;
 
-  // 2. Normalize items
-  let entries = Array.isArray(feed_data.entries) ? feed_data.entries : [];
+export async function extract_rss_feed_from_xml(xml: string, meta: IFeedMeta, item_indices: number[]): Promise<IFlyweightFeed> {
+  const feed_data = extractFromXml(xml, READER_OPTIONS) as IFeed;
+  return build_rss_feed(feed_data, meta, item_indices, 'xml');
+}
 
-  // 3. Apply item_limit
-  entries = entries.slice(0, item_limit);
+async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: number[], handle_prefix: string): Promise<IFlyweightFeed> {
+  // 1. Normalize items
+  const entries = Array.isArray(feed_data.entries) ? feed_data.entries : [];
 
-  let items: IItem[] = entries
-    .map((x: Record<string, any>) => {
-      const item: IItem = {
-        feed_id: id,
-        id: x.id,
-        title: x.title ?? "-",
-        description: x.description ?? "-",
-        link: x.link ?? "-",
-        authors: x.authors,
-        published: x.published,
-        tags: x.tags,
-        markdown: convert(x.content ?? "-", OPTIONS).content ?? "-",
-      };
+  // 2. Make items
+  let feed_items = item_indices
+    .map(i => {
+      const
+        item_data = entries[i] as Record<string, any>,
+        item: IItem = {
+          feed_id: meta.id,
+          feed_title: feed_data.title ?? meta.feed_name,
+          site_link: feed_data.link ?? '-',
+          id: item_data.id,
+          item_index: i,
+          title: item_data.title ?? "-",
+          description: item_data.description ?? "-",
+          link: item_data.link ?? "-",
+          authors: item_data.authors,
+          published: (item_data.published ? new Date(item_data.published) : new Date()).toISOString(),
+          tags: item_data.tags,
+          content: item_data.content ?? '.',
+        }
       return item;
     }) ?? [];
 
-  // 4. keep new items only
-  let cutoff;
-  if (!last_scan) {
-    cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 300);
-  } else {
-    cutoff = new Date(last_scan)
+  // 3. keep new items only if scan date is availble
+  if (meta.last_scan) {
+    const cutoff = new Date(meta.last_scan);
+    feed_items = feed_items.filter(i => {
+      const pubdate = new Date(i.published);
+      return pubdate >= cutoff;
+    });
   }
-  items = items.filter(i => {
-    const pubdate = new Date(i.published);
-    return pubdate >= cutoff;
-  });
 
-  // 5. store item objects in Redis
+  // 4. store item objects in Redis
   const
     client = createClient({ url: "redis://redis:6379" }),
     item_handles: string[] = [];
 
   await client.connect();
 
-  for (let i = 0; i < items.length; i++) {
-    const handle = `item_${id}_${i}`
+  for (const item of feed_items) {
+    const handle = `${handle_prefix}_${item.feed_id}_${item.item_index}`;
+    await client.json.set(handle, "$", item);
     item_handles.push(handle);
-
-    //await client.set(handle, JSON.stringify(items[i]));
-    await client.json.set(handle, "$", items[i]);
   }
 
-  // 6. build the flyweight return object
+  // 5. build the flyweight return object
   const feed: IFlyweightFeed = {
-    id, // rss_feeds record id
-    title: feed_data.title || feed_name,
+    id: meta.id, // rss_feeds record id
+    title: feed_data.title || meta.feed_name,
     site: feed_data.link || "-",
     tags: feed_data.tags,
     scanned: new Date().toISOString(),
-    short_content,
+    short_content: meta.short_content,
     item_handles,
   }
 
   if (feed_data.image) { feed.image = feed_data.image };
+  return feed;
+}
 
-  // 7. Update feed timestamp
+/**
+ * Ingests an RSS/Atom feed, normalizes its entries, and returns a list of
+ * str ctured `IItem` objects suitable for downstream processing in Windmill.
+ *
+ *  @param id
+ *   Database identifier of the RSS feed from the `rss_feeds` table.
+ *
+ *  @param feed_url
+ *   URL of the RSS/Atom feed to fetch. Used both for retrieval and as the
+ *   `baseUrl` for resolving relative links inside feed entries.
+ *
+ *  @param item_limit
+ *   Maximum number of normalized feed items to return.
+ *
+ *  @param last_scan
+ *   ISO timestamp of the previous scan. Included to filter new items.
+ *
+ *  @returns 
+ *   A promise resolving to flyyweight feed representation.
+ */
+export async function main(id: number, feed_name: string, feed_url: string, item_limit: number, last_scan: string | null, short_content: boolean): Promise<IFlyweightFeed> {
+  // 1. Fetch + parse RSS feed
+  READER_OPTIONS.baseUrl = feed_url;
+  const
+    feed_data = await extract(feed_url, READER_OPTIONS) as IFeed,
+    range = Array.from({ length: item_limit }, (_, i) => i),
+    feed = await build_rss_feed(feed_data, {
+      id,
+      feed_url,
+      feed_name,
+      item_limit,
+      last_scan,
+      short_content
+    }, range, 'web');
+
+  // 2. Update feed timestamp
   const sql = wmill.datatable('rss');
   await sql`
-    UPDATE rss_feeds
+  UPDATE rss_feeds
     SET last_scan = CAST(${feed.scanned} AS timestamptz)
     WHERE id = ${id}`.execute();
-
   return feed;
 }

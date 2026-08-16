@@ -1,4 +1,4 @@
-summary: Convert HTML to Markdown
+summary: HTML to Markdown
 description: ''
 lock: '!inline f/lib/html_to_markdown.script.lock'
 kind: script

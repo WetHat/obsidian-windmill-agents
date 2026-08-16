@@ -1,0 +1,115 @@
+summary: Add RSS feed regression test
+description: Add reference data for an RSS feed to the database
+value:
+  modules:
+    - id: a
+      summary: Create Feed Reference Data
+      value:
+        type: script
+        input_transforms:
+          feed_url:
+            type: javascript
+            expr: flow_input.feed_url
+          item_limit:
+            type: static
+            value: 10
+        is_trigger: false
+        path: u/peterernst/tests/new_feed_test/add_reference_data
+    - id: b
+      summary: Create RSS item reference data
+      value:
+        type: script
+        input_transforms:
+          feed:
+            type: javascript
+            expr: results.a
+        is_trigger: false
+        path: u/peterernst/tests/new_feed_test/add_item_reference_data
+    - id: c
+      value:
+        type: forloopflow
+        modules:
+          - id: d
+            summary: Fetch item
+            value:
+              type: script
+              input_transforms:
+                item_id:
+                  type: javascript
+                  expr: flow_input.iter.value
+              is_trigger: false
+              path: u/peterernst/tests/fetch_rss_item
+          - id: g
+            summary: Item content to Markdown
+            value:
+              type: script
+              input_transforms:
+                html:
+                  type: javascript
+                  expr: results.d.item.content
+              is_trigger: false
+              path: f/lib/html_to_markdown
+          - id: e
+            summary: Assemble Item Document
+            value:
+              type: script
+              input_transforms:
+                item:
+                  type: javascript
+                  expr: results.d.item
+                item_id:
+                  type: javascript
+                  expr: results.d.item_id
+                item_markdown:
+                  type: javascript
+                  expr: results.g
+              is_trigger: false
+              path: u/peterernst/tests/assemble_Item_doc
+          - id: f
+            summary: Save to Inbox
+            value:
+              type: script
+              input_transforms:
+                content:
+                  type: javascript
+                  expr: results.e
+                extension:
+                  type: static
+                  value: md
+                filename:
+                  type: javascript
+                  expr: '`Feed ${results.d.item.feed_id} - Item ${results.d.item_id}`'
+                vault:
+                  type: static
+                  value: WetHat Lab
+              is_trigger: false
+              path: f/lib/save_to_Inbox
+        iterator:
+          type: javascript
+          expr: results.b
+        parallel: false
+        skip_failures: true
+        squash: true
+  groups: []
+schema:
+  order:
+    - feed_url
+    - item_limit
+  properties:
+    feed_url:
+      type: string
+      description: Url of the feed xml
+      default: ''
+      nullable: false
+      title: Feed Url
+    item_limit:
+      type: number
+      description: Max number of feed items to retrieve
+      default: 5
+      max: 20
+      min: 1
+      nullable: false
+      title: Item Limit
+  required:
+    - feed_url
+    - item_limit

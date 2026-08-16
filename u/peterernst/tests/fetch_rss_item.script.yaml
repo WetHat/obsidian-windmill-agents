@@ -1,0 +1,16 @@
+summary: Fetch RSS item from the test database
+description: This script was edited in place of flow
+  u/peterernst/tests/new_feed_test  by peterernst.
+lock: '!inline u/peterernst/tests/fetch_rss_item.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    item_id:
+      type: number
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - item_id

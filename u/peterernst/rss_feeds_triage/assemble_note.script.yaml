@@ -80,7 +80,13 @@ schema:
       default: null
       format: resource-i_item
       originalType: string
+    markdown:
+      type: string
+      description: ''
+      default: null
+      originalType: string
   required:
     - feed
     - item
+    - markdown
     - analysis

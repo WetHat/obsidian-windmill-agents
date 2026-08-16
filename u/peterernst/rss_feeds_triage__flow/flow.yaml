@@ -14,6 +14,22 @@ value:
         hash: null
         is_trigger: false
         path: u/peterernst/rss_feeds_triage/select_feeds
+    - id: h
+      summary: Load Subject Matter Domains
+      value:
+        type: script
+        input_transforms:
+          extension:
+            type: static
+            value: md
+          filename:
+            type: static
+            value: Subject Matter Domains
+          location:
+            type: static
+            value: WetHat Lab/Context Data
+        is_trigger: false
+        path: f/lib/load_vault_file
     - id: b
       summary: For each rss feed
       value:
@@ -66,17 +82,16 @@ value:
                                   expr: flow_input.iter.value
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/dehydrate_item
-                          - id: h
-                            summary: Select subject matter domains
+                          - id: n
+                            summary: Item Content to Markdown
                             value:
                               type: script
                               input_transforms:
-                                database:
-                                  type: static
-                                  value: datatable://rss
-                              hash: 0b3f3c1e020e9d2e
+                                html:
+                                  type: javascript
+                                  expr: results.f.content
                               is_trigger: false
-                              path: u/peterernst/rss_feeds_triage/q
+                              path: f/lib/html_to_markdown
                           - id: i
                             summary: Article Analysis Agent
                             value:
@@ -125,11 +140,11 @@ value:
                                               nullable: false
                                               title: Domain Name
                                             relevance:
-                                              type: integer
+                                              type: number
                                               description: Relevance to subject matter domain
                                               default: 0
-                                              max: 3
-                                              min: 0
+                                              max: 0
+                                              min: 1
                                               nullable: false
                                               title: Relevance
                                           required:
@@ -230,17 +245,11 @@ value:
 
                                     \r
 
-                                    Subject Matter Domains:\r
+                                    # Subject Matter Domains\r
 
                                     \r
 
-                                    | Domain | Tags |\r
-
-                                    | --- | --- |\r
-
-                                    ${results.h.map( ({domain,tags}) => `|
-                                    ${domain} | ${tags.join(',')}
-                                    |`).join('\\n') }\r
+                                    ${results.h.data}\r
 
                                     \r
 
@@ -325,30 +334,8 @@ value:
                                     - 'domain': Exactly one name from Subject
                                     Matter Domains\r
 
-                                    - 'relevance': Relevance score of the
-                                    article strictly based on its explicit
-                                    content, evaluated using the domain’s tags
-                                    as interpretive cues.\r
-
-                                    \  | Score | Meaning |\r
-
-                                    \  | --- | --- |\r
-
-                                    \  | 0 | irrelevant: No explicit content
-                                    related to this domain's tags |\r
-
-                                    \  | 1 | somewhat relevant: Article contains
-                                    minor or tangential content related to the
-                                    domain's tags |\r
-
-                                    \  | 2 | relevant: Article contains clear,
-                                    meaningful content aligned with the domain's
-                                    tags |\r
-
-                                    \  | 3 | highly relevant: Article directly
-                                    addresses core concepts of the domain;
-                                    multiple explicit elements match the
-                                    domain’s tags |\r
+                                    - 'relevance': Relevance per the Relevance
+                                    Scoring Rubric\r
 
                                     \r
 
@@ -561,7 +548,7 @@ value:
 
                                     \r
 
-                                    ${results.f.markdown}`"
+                                    ${results.n}`"
                               tools: []
                           - id: k
                             summary: Assemble Note
@@ -577,6 +564,9 @@ value:
                                 item:
                                   type: javascript
                                   expr: results.f
+                                markdown:
+                                  type: javascript
+                                  expr: results.n
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/assemble_note
                           - id: g

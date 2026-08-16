@@ -1,4 +1,6 @@
-summary: ''
+summary: Reusable components
 display_name: lib
 extra_perms: {}
+labels:
+  - ComponentLibrary
 owners: []
