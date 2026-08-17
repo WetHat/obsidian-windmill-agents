@@ -178,16 +178,19 @@ function assembleImage(elem: Record<string, unknown>): IRssAsset | null {
 }
 
 function assembleDescription(elem: Record<string, any>): string | null {
-
-  let description = elem?.description["#text"] || elem.description || elem["media:description"] as string;
+  let description = elem.description || elem["media:description"];
   if (!description) {
-    let group = elem["media:group"];
+    const group = elem["media:group"];
     if (group) {
       description = group["media:description"];
     }
   }
 
-  return description;
+  if (typeof description === 'object') {
+    description = description["#text"] ?? null;
+  }
+
+  return description ?? null;
 }
 
 /**
@@ -349,7 +352,7 @@ const READER_OPTIONS: ParserOptions = {
       entry_data.description = description;
     }
 
-    entry_data.published = entry_data.published || entry_data.pubDate || new Date().toISOString();
+    entry_data.published = entry_data.published || entry_data.pubDate || entry_data.updated || new Date().toISOString();
     entry_data.tags = assembleTags(entry_data);
     entry_data.authors = assembleAuthors(entry_data);
 

@@ -31,6 +31,6 @@
 
     "redis": ["redis@6.2.1", "", { "dependencies": { "@redis/bloom": "6.2.1", "@redis/client": "6.2.1", "@redis/json": "6.2.1", "@redis/search": "6.2.1", "@redis/time-series": "6.2.1" } }, "sha512-Z9VHtgYs48PiQC77X9O2Er8Hj4T+5BtFjT91/vi5Is1D04N72cA946ZslM1ImJw8ZctFBZWAVjM7S5wJNeHMpg=="],
 
-    "windmill-client": ["windmill-client@1.790.0", "", {}, "sha512-3sjesX1Io7onvtHcBhOKK8z/Qb3Z1dsMsLg7vTL+Nz7pq2Mr0Nmy3WmLo4Ki1gn7dupto78h+b5J6QDYRFrKjw=="],
+    "windmill-client": ["windmill-client@1.790.1", "", {}, "sha512-3bA//MkSFI8m9Wh2qsgBu207fBQ3PDIl+0Vv0ela7+isL6HeHKlLa8Cd8B1qmzhk006pM0lRyhvJQy4h2gRuLQ=="],
   }
 }

@@ -2,7 +2,7 @@ version: v2
 locks:
   f/lib/html_to_markdown: 036f40a643179bac772a34cacd39fb17f0419ecb297467e3a4218b2fb8e93072
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
-  f/lib/read_rss_feed: 057871b95471ea295d14dea22a9d98673d8d292a3a1b57ffc19acdae99c73972
+  f/lib/read_rss_feed: 6caac1ec720363b2e398ae7773bfa0f70ddfa9a675c573ee9622e6ff8ef2b7b6
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
   f/lib/save_to_Inbox: 1f5af80b214d3ae309f9188311d35338f9e734b9d38c4563a6543b7ff4625c54
   u/peterernst/bld_browserless_request: 4dc936a932e8489080625550c7f074858899bb3ec5c0ed37cd27e63372c5fdcf
