@@ -11,7 +11,7 @@ export async function main(item_handle: string) {
   const item = await client.json.get(item_handle) as IItem;
 
   // 2. convert item content to markdown
-  const markdown = html_to_markdown(item.content);
+  const markdown = html_to_markdown(item.content, item.link);
 
   return {
     filename: `Item ${item.feed_id}_${item.item_index}`,

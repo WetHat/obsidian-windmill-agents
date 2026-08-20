@@ -1,6 +1,6 @@
 version: v2
 locks:
-  f/lib/html_to_markdown: 1853277607229454ff2efccd60bb4f273c8c15458643f4c193c8f6ae3d53dc27
+  f/lib/html_to_markdown: 46910bc919fb00d5b6270832ee23c1a182208e74ece6df1eefd42f2f82078e81
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
   f/lib/read_rss_feed: 49bb112074d0a5f90aa24e9e1c9840dceca040862e05ef66dd857ac4de100070
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
@@ -47,7 +47,7 @@ locks:
   u/peterernst/tests/new_feed_test/save_to_testfolder: 36d2b383a602a0fc430f384c02b983f571e9f28974db71840475ce4316f117b3
   u/peterernst/tests/rss/add_test_feed__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   u/peterernst/tests/rss/add_test_feed/download_feed: 3c7a69deec18c4899984991bb1172b07c65ccd4becb80627965b6a00c7d3818e
-  u/peterernst/tests/rss/assemble_feed_item_dump: 30c4ba8ac5adacc2c7c69bc0cde5e693b103e0c3aa1173f7378cc771800eb75a
-  u/peterernst/tests/rss/assemble_test_feed_item_dump: 0cdef92f8a0b4d0cf6aed37d24b1a47ac4eee3d370d5fda15a3cd850653d0105
+  u/peterernst/tests/rss/assemble_feed_item_dump: acab1b6ec1216fe7c00a0c29f4bccbf455f4f4693f438c9077b1afcf6313b88b
+  u/peterernst/tests/rss/assemble_test_feed_item_dump: 514d43f255311f52b82e10195492d04b6a007c40774f437682f398f6fb290d31
   u/peterernst/tests/rss/dump_test_feed__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   u/peterernst/tests/rss/fetch_test_feed_items: 91c1d0bcef786800e97ca12814786a9835aa6ef615fe593c01e8570de57bf9f1

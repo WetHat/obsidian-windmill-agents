@@ -2,15 +2,66 @@ import {
   convert,
   ListIndentType,
   LinkStyle,
-  type ConversionOptions,
-  type VisitorHandle,
+  NodeContext,
+  ConversionOptions,
+  VisitorHandle,
 } from "@xberg-io/html-to-markdown";
 
-function createVisitor(): VisitorHandle {
+
+/**
+ * Resolves relative links against an optional source URL.
+ *
+ * When initialized with a URL, the resolver derives the URL origin and the
+ * containing path. Absolute links and links without a configured origin are
+ * returned unchanged. Root-relative links are resolved against the origin,
+ * while other relative links are resolved against the containing path.
+ */
+class LinkResolver {
+  origin?: string;
+  location?: string;
+
+  constructor(url?: string) {
+    if (url) {
+      const u = new URL(url);
+      this.origin = u.origin;
+
+      const i = u.pathname.lastIndexOf("/");
+      this.location = i <= 0 ? this.origin : u.pathname.slice(0, i)
+    }
+  }
+
+  /**
+   * Resolves a link against the source URL configured for this instance.
+   *
+   * Links are returned unchanged when no source origin is available or when
+   * they already contain a protocol separator. Root-relative links are
+   * resolved against the source origin; other relative links are resolved
+   * against the source URL's containing path.
+   *
+   * @param link - The link to resolve, which may be absolute, root-relative,
+   *   or relative to the source URL's containing path.
+   * @returns The original link or the link resolved against the configured
+   *   source URL.
+   */
+  resolve(link: string): string {
+    if (!this.origin || link.includes('://')) {
+      return link;
+    }
+
+    if (link.startsWith('/')) {
+      return `${this.origin}${link}}`;
+    }
+
+    return `${this.location}/${link}`
+  }
+}
+
+function createVisitor(url?: string): VisitorHandle {
   let inPre = false;
+  const link_resolver = new LinkResolver(url);
 
   return {
-    visitElementStart(ctx) {
+    visitElementStart(ctx: NodeContext) {
       switch (ctx.tagName) {
         case "pre":
           inPre = true;
@@ -19,7 +70,7 @@ function createVisitor(): VisitorHandle {
       return "continue";
     },
 
-    visitElementEnd(ctx) {
+    visitElementEnd(ctx: NodeContext) {
       switch (ctx.tagName) {
         case "pre":
           inPre = false;
@@ -27,9 +78,10 @@ function createVisitor(): VisitorHandle {
       }
       return "continue";
     },
-    visitVideo(ctx, src) {
+    visitVideo(ctx: NodeContext, src: string) {
       // Obsidian hack for videos
-      return `![video](${src})`
+      const url = link_resolver.resolve(src);
+      return `![video](${url})`
     },
     visitLineBreak() {
       return inPre ? { custom: "⏎" } : "continue";
@@ -62,13 +114,14 @@ const OPTIONS: Omit<ConversionOptions, "visitor"> = {
  *
  * @param html - The HTML source to convert. At runtime, a nullish value falls
  *   back to `"-"` before conversion.
+ * @param url - Optional url used to determine base url link resolition
  * @returns The converted Markdown content, or `"-"` if the converter returns
  *   no content.
  */
-export function convert_to_markdown(html: string): string {
+export function convert_to_markdown(html: string, url?: string): string {
   const result = convert(html ?? "-", {
     ...OPTIONS,
-    visitor: createVisitor(),
+    visitor: createVisitor(url),
   });
 
   return (result.content ?? "-")
@@ -76,6 +129,6 @@ export function convert_to_markdown(html: string): string {
     .replaceAll(/⏎/g, "");
 }
 
-export async function main(html: string): Promise<string> {
-  return convert_to_markdown(html);
+export async function main(html: string, url?: string): Promise<string> {
+  return convert_to_markdown(html, url);
 }

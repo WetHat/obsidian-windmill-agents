@@ -90,6 +90,9 @@ value:
                                 html:
                                   type: javascript
                                   expr: results.f.content
+                                url:
+                                  type: javascript
+                                  expr: results.f.link
                               is_trigger: false
                               path: f/lib/html_to_markdown
                           - id: i
@@ -618,6 +621,7 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order: []
+  prompt_for_ai: ''
   properties: {}
   required: []
 tag: bun

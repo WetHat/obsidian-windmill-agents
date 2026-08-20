@@ -1,5 +1,5 @@
 summary: HTML to Markdown
-description: ''
+description: Convert HTML content to Obsidian friendly Markdown
 lock: '!inline f/lib/html_to_markdown.script.lock'
 kind: script
 schema:
@@ -7,6 +7,11 @@ schema:
   type: object
   properties:
     html:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    url:
       type: string
       description: ''
       default: null
