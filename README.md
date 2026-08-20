@@ -14,22 +14,28 @@
 flowchart TD
     subgraph DB["PostgreSQL"]
         RSS["rss_feeds"]
-        DOM["rss_domains"]
+    end
+
+    subgraph VAULT["Obsidian Vault"]
+        DOM["Context Data /<br/>Subject Matter Domains.md"]
+        INBOX["Inbox/"]
     end
 
     subgraph TRIAGE["rss_feeds_triage flow"]
         direction TB
         SEL["select_feeds"]
+        LD["load_vault_file"]
         READ["forloop: read_rss_feed<br/>fetch + parse → normalize → Redis"]
-        HOT{"branch: feed is hot?"}
+        HOT{"branchone:<br/>feed is hot?"}
         subgraph ITEM["forloop: per item"]
             direction TB
             DEHY["dehydrate_item<br/>(Redis)"]
-            Q["q: rss_domains"]
-            LLM["LLM analysis agent<br/>OpenRouter · deepseek-v4-pro"]
+            MD["html_to_markdown"]
+            LLM["LLM analysis agent<br/>OpenRouter · gemini-3.7-flash"]
             NOTE["assemble_note"]
+            SAVE["save_to_Inbox"]
         end
-        INBOX["save_to_Inbox<br/>Obsidian vault Inbox"]
+        COLD["drop_packet"]
     end
 
     subgraph SCRAPE["scrape_web_article flow (separate)"]
@@ -37,32 +43,36 @@ flowchart TD
         BLD["bld_browserless_request"]
         POST["HTTP POST → Browserless"]
         EXT["extract_article"]
-        MD["html_to_markdown"]
+        HMD["html_to_markdown"]
     end
 
     RSS --> SEL
-    DOM --> Q
+    DOM --> LD
     SEL --> READ
+    LD --> LLM
     READ --> HOT
-    HOT -- "hot" --> DEHY
-    HOT -- "not hot" --> SKIP["skip triage"]
-    DEHY --> Q
-    Q --> LLM
+    HOT -- "hot" --> ITEM
+    HOT -- "not hot" --> COLD
+    DEHY --> MD
+    MD --> LLM
     LLM --> NOTE
-    NOTE --> INBOX
+    NOTE --> SAVE
+    SAVE --> INBOX
     BLD --> POST
     POST --> EXT
-    EXT --> MD
+    EXT --> HMD
 ```
 
-- **`select_feeds`** → queries `rss_feeds` for feeds + last-scan state
-- **`read_rss_feed`** → fetches & parses RSS via `@extractus/feed-extractor`, enriches with images/media/authors/tags, stores items in **Redis**, returns a flyweight feed descriptor
+- **`select_feeds`** → queries `rss_feeds` (`id, name, feed_url, item_limit, last_scan`) for feeds + last-scan state
+- **`load_vault_file`** → reads the *Subject Matter Domains* markdown file from the Obsidian vault (`WetHat Lab / Context Data`); this text is injected into the LLM system prompt
+- **`read_rss_feed`** → fetches & parses RSS via `@extractus/feed-extractor`, enriches with images/media/authors/tags, stores full `IItem` bodies in **Redis**, returns a lightweight flyweight feed descriptor + `item_handles`
+- **`branchone: feed is hot`** → feeds that returned items (`item_handles.length > 0`) enter the per-item triage loop; empty feeds fall through to `drop_packet`
 - **`dehydrate_item`** → rehydrates a full item from Redis by handle
-- **`q`** → loads subject-matter domains from `rss_domains`
-- **LLM analysis agent** (OpenRouter, `deepseek/deepseek-v4-pro`) → scores each item on 5 axes (actionability, novelty, impact, rigor, depth), domain relevance, highlights, expiry
-- **`assemble_note`** → computes a weighted reading value and renders a Markdown note with frontmatter
-- **`save_to_Inbox`** → writes the note into the Obsidian vault's `Inbox` folder
-- **`scrape_web_article` flow** (separate) → full-text article scraping via **Browserless** (`bld_browserless_request` → HTTP POST → `extract_article` → `html_to_markdown`)
+- **`html_to_markdown`** → converts item HTML content to Markdown (`@xberg-io/html-to-markdown`) before LLM analysis
+- **LLM analysis agent** (OpenRouter, `google/gemini-3.7-flash`, high reasoning effort) → returns structured JSON scoring each item on 5 axes (actionability, novelty, impact, rigor, depth), per-domain relevance, highlights, analyst notes, expiry
+- **`assemble_note`** → computes a weighted reading value and renders an Obsidian note with frontmatter + highlights + reading-value table
+- **`save_to_Inbox`** → writes the note into the target vault's `Inbox` folder
+- **`scrape_web_article` flow** (separate) → full-text article scraping via **Browserless** (`bld_browserless_request` → `send_post_request` → `extract_article` → `html_to_markdown`)
 
 ---
 
@@ -81,6 +91,7 @@ flowchart TD
 ├── f/lib/                      # Shared library scripts
 │   ├── read_rss_feed.ts        # Core: RSS fetch + parse + Redis cache
 │   ├── html_to_markdown.ts     # HTML → Markdown conversion
+│   ├── load_vault_file.ts      # Read a file from the Obsidian vault
 │   └── save_to_Inbox.ts        # Write note into Obsidian vault Inbox
 │
 └── u/peterernst/
@@ -88,7 +99,7 @@ flowchart TD
     │   ├── select_feeds.pg.sql # Select feeds from DB
     │   ├── select_hot_feeds.pg.sql # Select "hot" feeds variant
     │   ├── download_policy.pg.sql  # Per-feed scrape policy lookup
-    │   ├── q.pg.sql            # Select subject-matter domains
+    │   ├── q.pg.sql            # Select subject-matter domains (legacy)
     │   ├── dehydrate_item.ts   # Rehydrate item from Redis by handle
     │   └── assemble_note.ts    # Score + render Markdown note
     │
@@ -100,6 +111,7 @@ flowchart TD
     │   └── scrape_web_article__flow/  # Browserless → extract → markdown
     │
     ├── bld_browserless_request.ts  # Build Browserless scrape request
+    ├── drop_packet.ts          # No-op sink for cold (non-hot) feeds
     ├── openai_windmill.resource.yaml    # OpenAI API key resource
     ├── openrouter_windmill.resource.yaml# OpenRouter API key resource
     └── openrouter_windmill.variable.yaml# OpenRouter token (secret)
@@ -116,8 +128,10 @@ flowchart TD
 | **Custom `IFeed`/`IItem` interfaces** | Extends `FeedEntry` with `tags`, `authors`, `image`, `media[]`, `content` |
 | **Redis as item store** | Full item bodies cached in Redis; flow passes lightweight flyweight feed descriptors + handles |
 | **Forloop + `skip_failures: true`** | One bad feed won't kill the batch; partial results preserved |
-| **`branchone` on hot feeds** | Only feeds flagged "hot" get the full LLM triage treatment |
-| **LLM analysis agent** | OpenRouter `deepseek/deepseek-v4-pro` scores items on 5 axes + domain relevance with structured JSON output |
+| **`branchone` on hot feeds** | Only feeds flagged "hot" get the full LLM triage treatment; cold feeds hit `drop_packet` |
+| **Domains from Obsidian vault** | Subject-matter domains are maintained as a Markdown file in the vault (`Context Data/Subject Matter Domains.md`) and injected into the LLM system prompt via `load_vault_file` |
+| **HTML → Markdown before LLM** | `html_to_markdown` (`@xberg-io/html-to-markdown`) normalizes item content so the agent sees clean Markdown, not raw HTML |
+| **LLM analysis agent** | OpenRouter `google/gemini-3.7-flash` (high reasoning effort) scores items on 5 axes + domain relevance with structured JSON output |
 | **OpenRouter as LLM gateway** | Multi-model access (GPT-4, Claude, Gemini) through one API key |
 | **Windmill secrets for credentials** | API keys stored as Windmill secrets, never synced to git (`skipSecrets: true`) |
 | **Browserless for full-text** | Headless Chrome scraping (`scrape_web_article` flow) for articles missing full content in the feed |
@@ -144,8 +158,10 @@ npx windmill flow run u/peterernst/rss_feeds_triage
 ### Prerequisites
 
 - **Windmill workspace** (self-hosted or cloud) with a PostgreSQL resource named `rss`
-- **`rss_feeds` table** with columns: `id`, `name`, `feed_url`, `item_limit`, `last_scan`, `scrape_article`, `feed_data`
-- **`rss_domains` table** with subject-matter domains + tags for LLM relevance scoring
+- **`rss_feeds` table** with columns: `id`, `name`, `feed_url`, `item_limit`, `last_scan`, `short_content`
+- **Obsidian vault mounted** at `/mnt/obsidianvaults/<vault>` (e.g. `WetHat Lab`) with:
+  - `Context Data/Subject Matter Domains.md` — the domains used for LLM relevance scoring
+  - `Inbox/` — where triaged notes are written
 - **Redis** reachable at `redis://redis:6379` for item caching
 - **OpenRouter** resource configured in Windmill (LLM analysis agent)
 
@@ -154,14 +170,16 @@ npx windmill flow run u/peterernst/rss_feeds_triage
 ## Flow: `rss_feeds_triage`
 
 1. **`select_feeds`** — `SELECT id, name, feed_url, item_limit, last_scan FROM rss_feeds` (PostgreSQL rawscript)
-2. **Forloop over feeds** — each feed → `f/lib/read_rss_feed` (fetch, parse, normalize, cache items in Redis)
+2. **`load_vault_file`** — reads `Context Data/Subject Matter Domains.md` from the vault (injected into the LLM system prompt)
+3. **Forloop over feeds** — each feed → `f/lib/read_rss_feed` (fetch, parse, normalize, cache items in Redis)
    - `parallel: false`, `skip_failures: true`
-3. **`branchone` — "Feed is hot"** — for hot feeds, forloop over items:
+4. **`branchone` — "Feed is hot"** — for hot feeds, forloop over items (`item_handles`):
    - **`dehydrate_item`** — rehydrate full item from Redis by handle
-   - **`q`** — load subject-matter domains from `rss_domains`
-   - **LLM analysis agent** — OpenRouter `deepseek/deepseek-v4-pro`, structured JSON output (highlights, domain_relevance, reading_values, analyst_notes, expires)
+   - **`html_to_markdown`** — convert item HTML content to Markdown
+   - **LLM analysis agent** — OpenRouter `google/gemini-3.7-flash` (high reasoning effort), structured JSON output (highlights, domain_relevance, reading_values, analyst_notes, expires)
    - **`assemble_note`** — weighted reading value + Markdown note with frontmatter
    - **`save_to_Inbox`** — write note to Obsidian vault `Inbox`
+   - Cold feeds (no items) fall through to **`drop_packet`** (no-op)
 
 ### Script: `read_rss_feed`
 
