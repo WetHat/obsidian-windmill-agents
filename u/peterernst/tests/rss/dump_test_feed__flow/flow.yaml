@@ -1,0 +1,82 @@
+summary: Dump test feed items to Inbox
+description: ''
+value:
+  modules:
+    - id: d
+      summary: Fetch items from a test feed
+      value:
+        type: script
+        input_transforms:
+          feed_id:
+            type: javascript
+            expr: flow_input.feed_id
+          item_indices:
+            type: javascript
+            expr: flow_input.items
+        is_trigger: false
+        path: u/peterernst/tests/rss/fetch_test_feed_items
+    - id: a
+      summary: For each item
+      value:
+        type: forloopflow
+        modules:
+          - id: e
+            summary: Assemble test feed item dump
+            value:
+              type: script
+              input_transforms:
+                item_handle:
+                  type: javascript
+                  expr: flow_input.iter.value
+              is_trigger: false
+              path: u/peterernst/tests/rss/assemble_test_feed_item_dump
+          - id: f
+            summary: Write item dump to vault
+            value:
+              type: script
+              input_transforms:
+                content:
+                  type: javascript
+                  expr: results.e.content
+                extension:
+                  type: static
+                  value: md
+                filename:
+                  type: javascript
+                  expr: results.e.filename
+                location:
+                  type: static
+                  value: Inbox
+                vault:
+                  type: static
+                  value: WetHat Lab
+              is_trigger: false
+              path: f/lib/write_to_vault
+        iterator:
+          type: javascript
+          expr: results.d.item_handles
+        parallel: false
+        skip_failures: true
+        squash: true
+  groups: []
+schema:
+  order:
+    - feed_id
+    - items
+  prompt_for_ai: ''
+  properties:
+    feed_id:
+      type: integer
+      description: Id of the feed record in the `test_feeds` table
+      nullable: false
+      title: Feed ID
+    items:
+      type: array
+      description: Indices of the items to dump
+      default: []
+      items:
+        type: string
+      title: Item Indices
+  required:
+    - feed_id
+tag: bun

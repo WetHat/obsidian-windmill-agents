@@ -25,11 +25,6 @@ export interface IFeedMeta {
    */
   feed_url: string,
   /**
-   * Maximum number of items to retrieve from the feed.
-   * Used to cap ingestion for large feeds.
-   */
-  item_limit: number,
-  /**
    * ISO timestamp of the last successful scan.
    * If null, the feed has never been scanned.
    */
@@ -382,6 +377,9 @@ const READER_OPTIONS: ParserOptions = {
 
 
 export async function extract_rss_feed_from_xml(xml: string, meta: IFeedMeta, item_indices: number[]): Promise<IFlyweightFeed> {
+  const url = new URL(meta.feed_url);
+  READER_OPTIONS.baseUrl = `${url.protocol}://${url.hostname}`;
+
   const feed_data = extractFromXml(xml, READER_OPTIONS) as IFeed;
   return build_rss_feed(feed_data, meta, item_indices, 'xml');
 }
@@ -470,8 +468,11 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
  *   A promise resolving to flyyweight feed representation.
  */
 export async function main(id: number, feed_name: string, feed_url: string, item_limit: number, last_scan: string | null, short_content: boolean): Promise<IFlyweightFeed> {
+  // 0.determine a base URL
+  const url = new URL(feed_url);
+  READER_OPTIONS.baseUrl = `${url.protocol}://${url.hostname}`;
+
   // 1. Fetch + parse RSS feed
-  READER_OPTIONS.baseUrl = feed_url;
   const
     feed_data = await extract(feed_url, READER_OPTIONS) as IFeed,
     range = Array.from({ length: item_limit }, (_, i) => i),
@@ -479,7 +480,6 @@ export async function main(id: number, feed_name: string, feed_url: string, item
       id,
       feed_url,
       feed_name,
-      item_limit,
       last_scan,
       short_content
     }, range, 'web');

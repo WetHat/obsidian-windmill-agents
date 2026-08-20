@@ -1,16 +1,16 @@
-summary: Fetch RSS item from the test database
+summary: Download RSS/Atom feed
 description: This script was edited in place of flow
-  u/peterernst/tests/new_feed_test  by peterernst.
-lock: '!inline u/peterernst/tests/fetch_rss_item.script.lock'
+  u/peterernst/tests/add_test_feed  by peterernst.
+lock: '!inline u/peterernst/tests/rss/add_test_feed/download_feed.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
-    item_id:
-      type: number
+    feed_url:
+      type: string
       description: ''
       default: null
       originalType: string
   required:
-    - item_id
+    - feed_url

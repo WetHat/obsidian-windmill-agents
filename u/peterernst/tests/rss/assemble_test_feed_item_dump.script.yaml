@@ -1,0 +1,15 @@
+summary: Assemble test feed item dump
+description: Create a Markdown representation of an feed item
+lock: '!inline u/peterernst/tests/rss/assemble_test_feed_item_dump.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    item_handle:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - item_handle

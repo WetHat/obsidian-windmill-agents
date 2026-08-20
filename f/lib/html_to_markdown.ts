@@ -1,42 +1,43 @@
 import {
   convert,
   ListIndentType,
-  ConversionOptions,
   LinkStyle,
-  VisitorHandle,
-  VisitResult
-} from "@xberg-io/html-to-markdown"
+  type ConversionOptions,
+  type VisitorHandle,
+} from "@xberg-io/html-to-markdown";
 
+function createVisitor(): VisitorHandle {
+  let inPre = false;
 
-let inPre = false;
+  return {
+    visitElementStart(ctx) {
+      switch (ctx.tagName) {
+        case "pre":
+          inPre = true;
+          break;
+      }
+      return "continue";
+    },
 
-const visitor: VisitorHandle = {
-  inPre: false,
+    visitElementEnd(ctx) {
+      switch (ctx.tagName) {
+        case "pre":
+          inPre = false;
+          break;
+      }
+      return "continue";
+    },
+    visitVideo(ctx, src) {
+      // Obsidian hack for videos
+      return `![video](${src})`
+    },
+    visitLineBreak() {
+      return inPre ? { custom: "⏎" } : "continue";
+    },
+  };
+}
 
-  visitElementStart(ctx) {
-    if (ctx.tagName === "pre") {
-      inPre = true;
-    }
-    return VisitResult.Continue;
-  },
-
-  visitElementEnd(ctx) {
-    if (ctx.tagName === "pre") {
-      inPre = false;
-    }
-    return VisitResult.Continue;
-  },
-
-  visitLineBreak(ctx) {
-    return inPre ? "⏎" : VisitResult.Continue;
-  }
-};
-
-
-/**
- * html -> Markdown conversion options
- */
-const OPTIONS: ConversionOptions = {
+const OPTIONS: Omit<ConversionOptions, "visitor"> = {
   listIndentType: ListIndentType.Tabs,
   listIndentWidth: 1,
   compactTables: true,
@@ -46,20 +47,35 @@ const OPTIONS: ConversionOptions = {
   linkStyle: LinkStyle.Inline,
   captureSvg: true,
   inferDimensions: true,
-  excludeSelectors: [
-    "style",
-    "script"
-  ],
-  visitor,
+  excludeSelectors: ["style", "script"],
 };
 
+/**
+ * Converts HTML to Markdown using configured conversion options and custom
+ * visitors.
+ *
+ * The conversion is configured for tab-indented lists, compact tables, inline
+ * links, SVG capture, inferred dimensions, and exclusion of `<style>` and
+ * `<script>` elements. `<video>` elements are rendered as Obsidian-compatible
+ * Markdown image links, and line breaks inside `<pre>` elements are normalized
+ * before the result is returned.
+ *
+ * @param html - The HTML source to convert. At runtime, a nullish value falls
+ *   back to `"-"` before conversion.
+ * @returns The converted Markdown content, or `"-"` if the converter returns
+ *   no content.
+ */
+export function convert_to_markdown(html: string): string {
+  const result = convert(html ?? "-", {
+    ...OPTIONS,
+    visitor: createVisitor(),
+  });
+
+  return (result.content ?? "-")
+    .replaceAll(/⏎\n\n/g, "\n")
+    .replaceAll(/⏎/g, "");
+}
 
 export async function main(html: string): Promise<string> {
-  let markdown = convert(html ?? "-", OPTIONS).content ?? "-";
-  // pstprocess the markdown
-  markdown = markdown
-    .replaceAll(/⏎\n\n/g, '\n')
-    .replaceAll(/⏎/g, '');
-
-  return markdown;
+  return convert_to_markdown(html);
 }

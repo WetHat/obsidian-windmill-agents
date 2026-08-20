@@ -1,17 +1,16 @@
-summary: Add RSS Items
+summary: Item to Markdown
 description: This script was edited in place of flow
-  u/peterernst/tests/new_feed_test  by peterernst.
-lock: '!inline u/peterernst/tests/new_feed_test/add_item_reference_data.script.lock'
+  u/peterernst/tests/dump_test_feed  by peterernst.
+lock: '!inline u/peterernst/tests/rss/assemble_feed_item_dump.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
-    feed:
-      type: object
+    item_handle:
+      type: string
       description: ''
       default: null
-      format: resource-i_flyweight_feed
       originalType: string
   required:
-    - feed
+    - item_handle

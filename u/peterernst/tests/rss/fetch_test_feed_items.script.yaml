@@ -1,0 +1,22 @@
+summary: Fetch items from a test feed
+description: ''
+lock: '!inline u/peterernst/tests/rss/fetch_test_feed_items.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    feed_id:
+      type: number
+      description: ''
+      default: null
+    item_indices:
+      type: array
+      description: ''
+      default: null
+      items:
+        type: number
+      originalType: number[]
+  required:
+    - feed_id
+    - item_indices

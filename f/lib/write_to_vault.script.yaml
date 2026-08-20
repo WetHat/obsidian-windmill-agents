@@ -1,0 +1,39 @@
+summary: Write content to vault
+description: 'Write content to a file in the vault '
+lock: '!inline f/lib/write_to_vault.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    content:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    extension:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    filename:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    location:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    vault:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - vault
+    - location
+    - filename
+    - extension
+    - content

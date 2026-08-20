@@ -217,8 +217,8 @@ value:
                                   type: static
                                   value:
                                     kind: openrouter
-                                    model: deepseek/deepseek-v4-pro
-                                    reasoning_effort: xhigh
+                                    model: google/gemini-3.7-flash
+                                    reasoning_effort: high
                                     resource: $res:u/peterernst/openrouter_windmill
                                 streaming:
                                   type: static
@@ -620,3 +620,4 @@ schema:
   order: []
   properties: {}
   required: []
+tag: bun
