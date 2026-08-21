@@ -1,7 +1,7 @@
-summary: Dehydrate item
+summary: Dehydrate feed item
 description: This script was edited in place of flow
   u/peterernst/rss_feeds_triage  by peterernst.
-lock: '!inline u/peterernst/rss_feeds_triage/dehydrate_item.script.lock'
+lock: '!inline u/peterernst/rss_feeds_triage/dehydrate_feed_item.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

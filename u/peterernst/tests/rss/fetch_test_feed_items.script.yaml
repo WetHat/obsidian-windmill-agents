@@ -1,4 +1,4 @@
-summary: Fetch items from a test feed
+summary: Fetch items from test feed
 description: ''
 lock: '!inline u/peterernst/tests/rss/fetch_test_feed_items.script.lock'
 kind: script

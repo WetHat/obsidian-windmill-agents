@@ -1,13 +1,7 @@
-import { createClient } from "redis";
 import { IItem } from "/f/lib/read_rss_feed"
 import { convert_to_markdown } from "/f/lib/html_to_markdown"
 
-export async function main(item_handle: string) {
-  // 1. dehydrate the item
-  const client = createClient({ url: "redis://redis:6379" });
-  await client.connect();
-  const item = await client.json.get(item_handle) as IItem;
-
+export async function main(item: IItem) {
   // 2. convert item content to Markdown
   const markdown = convert_to_markdown(item.content, item.link);
 

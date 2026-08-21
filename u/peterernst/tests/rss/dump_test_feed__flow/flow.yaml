@@ -2,7 +2,7 @@ summary: Dump test feed items to Inbox
 description: ''
 value:
   modules:
-    - id: d
+    - id: fetch
       summary: Fetch items from a test feed
       value:
         type: script
@@ -20,30 +20,40 @@ value:
       value:
         type: forloopflow
         modules:
-          - id: e
+          - id: dehydrate
+            summary: Dehydrate feed item
+            value:
+              type: script
+              input_transforms:
+                handle:
+                  type: javascript
+                  expr: flow_input.iter.value
+              is_trigger: false
+              path: u/peterernst/rss_feeds_triage/dehydrate_feed_item
+          - id: assemble
             summary: Assemble test feed item dump
             value:
               type: script
               input_transforms:
-                item_handle:
+                item:
                   type: javascript
-                  expr: flow_input.iter.value
+                  expr: results.dehydrate
               is_trigger: false
               path: u/peterernst/tests/rss/assemble_test_feed_item_dump
-          - id: f
+          - id: dump
             summary: Write item dump to vault
             value:
               type: script
               input_transforms:
                 content:
                   type: javascript
-                  expr: results.e.content
+                  expr: results.assemble.content
                 extension:
                   type: static
                   value: md
                 filename:
                   type: javascript
-                  expr: results.e.filename
+                  expr: results.assemble.filename
                 location:
                   type: static
                   value: Inbox
@@ -54,11 +64,30 @@ value:
               path: f/lib/write_to_vault
         iterator:
           type: javascript
-          expr: results.d.item_handles
+          expr: results.fetch.item_handles
         parallel: false
         skip_failures: true
         squash: true
   groups: []
+  notes:
+    - id: note-i16ci9jfgcpomsy5p09u
+      type: free
+      color: green
+      locked: false
+      position:
+        x: 165.52235671588497
+        y: 2.8357074842275978
+      size:
+        height: 200
+        width: 300
+      text: >-
+        ### Purpose
+
+        Fetches selected items from a test RSS feed in the `test_feeds` table,
+        converts each item into a dehydrated representation, assembles a
+        Markdown dump, and writes each dump to the WetHat Lab vault’s Inbox.
+        Items are processed sequentially, and individual item failures are
+        skipped.
 schema:
   order:
     - feed_id

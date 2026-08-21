@@ -1,0 +1,206 @@
+summary: Test a Feed
+description: ''
+value:
+  modules:
+    - id: c
+      summary: Lookup item indices
+      value:
+        type: script
+        input_transforms:
+          feed_id:
+            type: javascript
+            expr: flow_input.id
+        is_trigger: false
+        path: u/peterernst/tests/rss/test_feed/lookup_item_indices
+    - id: d
+      summary: Fetch items from test feed
+      value:
+        type: script
+        input_transforms:
+          feed_id:
+            type: javascript
+            expr: flow_input.id
+          item_indices:
+            type: javascript
+            expr: results.c
+        is_trigger: false
+        path: u/peterernst/tests/rss/fetch_test_feed_items
+    - id: a
+      value:
+        type: forloopflow
+        modules:
+          - id: dehydrate
+            summary: Dehydrate feed item
+            value:
+              type: script
+              input_transforms:
+                handle:
+                  type: javascript
+                  expr: flow_input.iter.value
+              is_trigger: false
+              path: u/peterernst/rss_feeds_triage/dehydrate_feed_item
+          - id: dump
+            summary: Assemble test feed item dump
+            value:
+              type: script
+              input_transforms:
+                item:
+                  type: javascript
+                  expr: results.dehydrate
+              is_trigger: false
+              path: u/peterernst/tests/rss/assemble_test_feed_item_dump
+          - id: lookup_item_record
+            summary: Lookup item reference data
+            value:
+              type: script
+              input_transforms:
+                item:
+                  type: javascript
+                  expr: results.dehydrate
+              hash: null
+              is_trigger: false
+              path: u/peterernst/tests/rss/test_feed/lookup_item_record
+          - id: b
+            summary: ''
+            value:
+              type: branchone
+              branches:
+                - summary: Update item Reference data
+                  modules:
+                    - id: update
+                      summary: Update test feed item reference data
+                      value:
+                        type: script
+                        input_transforms:
+                          item_id:
+                            type: javascript
+                            expr: results.lookup_item_record.id
+                          markdown:
+                            type: javascript
+                            expr: results.dump.content
+                        hash: null
+                        is_trigger: false
+                        path: u/peterernst/tests/rss/test_feed/update_reference_data
+                  expr: flow_input.update || results.lookup_item_record.item_markdown === ""
+                  parallel: true
+                  skip_failure: true
+              default:
+                - id: e
+                  summary: ''
+                  value:
+                    type: branchone
+                    branches:
+                      - summary: Item content different from reference
+                        modules:
+                          - id: g
+                            summary: ''
+                            value:
+                              type: branchall
+                              branches:
+                                - summary: Dump Reference Item to vault
+                                  modules:
+                                    - id: h
+                                      summary: Write content to vault
+                                      value:
+                                        type: script
+                                        input_transforms:
+                                          content:
+                                            type: javascript
+                                            expr: results.lookup_item_record.item_markdown
+                                          extension:
+                                            type: static
+                                            value: md
+                                          filename:
+                                            type: javascript
+                                            expr: results.dump.filename + '-Ref'
+                                          location:
+                                            type: static
+                                            value: Inbox
+                                          vault:
+                                            type: static
+                                            value: WetHat Lab
+                                        is_trigger: false
+                                        path: f/lib/write_to_vault
+                                  expr: ''
+                                  parallel: true
+                                  skip_failure: false
+                                - summary: Dump current Item to vault
+                                  modules:
+                                    - id: f
+                                      summary: Write current item
+                                      value:
+                                        type: script
+                                        input_transforms:
+                                          content:
+                                            type: javascript
+                                            expr: results.dump.content
+                                          extension:
+                                            type: static
+                                            value: md
+                                          filename:
+                                            type: javascript
+                                            expr: results.dump.filename + '-Now'
+                                          location:
+                                            type: static
+                                            value: Inbox
+                                          vault:
+                                            type: static
+                                            value: WetHat Lab
+                                        is_trigger: false
+                                        path: f/lib/write_to_vault
+                                  expr: 'false'
+                                  parallel: true
+                                  skip_failure: false
+                              parallel: false
+                          - id: j
+                            summary: Report Failure
+                            value:
+                              type: rawscript
+                              content: '!inline report_failure.ts'
+                              input_transforms:
+                                item:
+                                  type: javascript
+                                  expr: results.dehydrate
+                              lock: '!inline report_failure.lock'
+                              language: bun
+                        expr: results.dump.content !== results.lookup_item_record.item_markdown
+                        parallel: true
+                        skip_failure: true
+                    default:
+                      - id: i
+                        summary: Report success
+                        value:
+                          type: rawscript
+                          content: '!inline report_success.ts'
+                          input_transforms:
+                            item:
+                              type: javascript
+                              expr: results.dehydrate
+                          lock: '!inline report_success.lock'
+                          language: bun
+        iterator:
+          type: javascript
+          expr: results.d.item_handles
+        parallel: false
+        skip_failures: true
+        squash: true
+  groups: []
+  notes: []
+schema:
+  order:
+    - id
+    - update
+  properties:
+    id:
+      type: number
+      description: ID of an RSS feed in the `test_feeds` table
+      nullable: false
+      placeholder: Numeric ID
+      title: Feed ID
+    update:
+      type: boolean
+      description: Update reference data for all items registered for testing
+      default: false
+      title: Update Reference Data
+  required:
+    - id

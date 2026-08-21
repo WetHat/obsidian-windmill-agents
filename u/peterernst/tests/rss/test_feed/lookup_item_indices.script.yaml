@@ -1,0 +1,16 @@
+summary: Lookup item indices
+description: This script was edited in place of flow
+  u/peterernst/tests/rss/test_feed  by peterernst.
+lock: '!inline u/peterernst/tests/rss/test_feed/lookup_item_indices.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    feed_id:
+      type: number
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - feed_id

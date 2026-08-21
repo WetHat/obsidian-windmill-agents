@@ -1,6 +1,7 @@
-summary: Assemble test feed item dump
-description: Create a Markdown representation of an feed item
-lock: '!inline u/peterernst/tests/rss/assemble_test_feed_item_dump.script.lock'
+summary: Lookup item reference data
+description: This script was edited in place of flow
+  u/peterernst/tests/rss/test_feed  by peterernst.
+lock: '!inline u/peterernst/tests/rss/test_feed/lookup_item_record.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -11,6 +12,5 @@ schema:
       description: ''
       default: null
       format: resource-i_item
-      originalType: string
   required:
     - item
