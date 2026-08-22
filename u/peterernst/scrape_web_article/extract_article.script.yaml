@@ -7,16 +7,20 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
-    response:
+    body:
+      type: object
+      description: ''
+      default: {}
+      properties: {}
+    headers:
+      type: object
+      description: ''
+      default: {}
+      format: resource-record
+    url:
       type: string
       description: ''
       default: null
       originalType: string
-    status:
-      type: number
-      description: ''
-      default: null
-      originalType: string
   required:
-    - status
-    - response
+    - url

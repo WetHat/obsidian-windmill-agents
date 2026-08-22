@@ -1,4 +1,4 @@
-import { IItem } from "/f/lib/read_rss_feed"
+import { IItem, IRssAsset } from "/f/lib/read_rss_feed"
 import { convert_to_markdown } from "/f/lib/html_to_markdown"
 
 export async function main(item: IItem) {
@@ -21,7 +21,11 @@ description: >-
 authors: [${item.authors.map(a => '"' + a.trim() + '"').join(',')}]
 tags: [${item.tags.map(t => t.trim()).join(',')} ]
 ---
-${markdown}`;
+${markdown}
+
+#### Media
+
+${item.media.map((m: IRssAsset) => `- ![${m.type}|${m.width > 0 ? m.width : 64}](${m.src})`).join('\n')}`;
 
   return {
     filename: `Feed~${item.feed_id}~Item~${item.item_index}`,

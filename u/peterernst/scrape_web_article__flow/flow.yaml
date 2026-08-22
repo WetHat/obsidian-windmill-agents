@@ -3,7 +3,7 @@ description: Scrape the content of a web page using the Browserless service and
   return its main article as Markdown
 value:
   modules:
-    - id: a
+    - id: request
       summary: Build Browserless request
       value:
         type: script
@@ -13,33 +13,20 @@ value:
             expr: flow_input.url
         is_trigger: false
         path: u/peterernst/bld_browserless_request
-    - id: b
-      summary: Send POST Request (http)
+    - id: extract
+      summary: Extract article
       value:
         type: script
         input_transforms:
           body:
             type: javascript
-            expr: results.a.body
+            expr: results.request.body
           headers:
             type: javascript
-            expr: results.a.headers
+            expr: results.request.headers
           url:
             type: javascript
-            expr: results.a.browserlessURL
-        is_trigger: false
-        path: hub/11643/http/send_post_request
-    - id: c
-      summary: Extract article
-      value:
-        type: script
-        input_transforms:
-          response:
-            type: javascript
-            expr: results.b.text
-          status:
-            type: javascript
-            expr: results.b.status
+            expr: flow_input.url
         is_trigger: false
         path: u/peterernst/scrape_web_article/extract_article
   groups: []

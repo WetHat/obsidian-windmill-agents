@@ -1,8 +1,8 @@
 version: v2
 locks:
-  f/lib/html_to_markdown: 46910bc919fb00d5b6270832ee23c1a182208e74ece6df1eefd42f2f82078e81
+  f/lib/html_to_markdown: 86954bec234ad1a7c8666065fd52cfa2f1cd733980f9ffefd5991f2e059b44af
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
-  f/lib/read_rss_feed: 49bb112074d0a5f90aa24e9e1c9840dceca040862e05ef66dd857ac4de100070
+  f/lib/read_rss_feed: 53dc4344cabff231a00bf742f44d9f99b4890d0108b2ecb01ec2ee52a234b694
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
   f/lib/save_to_Inbox: 1f5af80b214d3ae309f9188311d35338f9e734b9d38c4563a6543b7ff4625c54
   f/lib/write_to_vault: 58bf96d193fc388b8a6f1564678bb7cff1be90bc2c74dd71d25269e3f9b26a72
@@ -39,7 +39,7 @@ locks:
   u/peterernst/Sandbox__flow+a.ts: 33d99b449df741aba6fea2c14c48d93daf48ae9f0a3bd13ab73b9941a4c6af59
   u/peterernst/Sandbox__flow+b.ts: f839daa712f42e68e477afe873967e157417a60409fef38eb5ba3236d6196c3a
   u/peterernst/scrape_web_article__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
-  u/peterernst/scrape_web_article/extract_article: 8958d074d797db3071ac64bedf07da80ee119c42efe436fa4ea970a6d19cff8b
+  u/peterernst/scrape_web_article/extract_article: dd25df648462b916846f6dd8ad2bc6e4d50d89ebd2b28f83c877f0064e365d0a
   u/peterernst/tests/assemble_Item_doc: dedc3c0233f7de0cf830707c298119c43171545da00bcbb86b3bdd3adebc03eb
   u/peterernst/tests/fetch_rss_item: 7986090b3037094aa5fbe9e6a7270e753be8b0a28e62a8c9a1d4d4c23523175b
   u/peterernst/tests/new_feed_test__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
@@ -49,7 +49,7 @@ locks:
   u/peterernst/tests/rss/add_test_feed__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   u/peterernst/tests/rss/add_test_feed/download_feed: 3c7a69deec18c4899984991bb1172b07c65ccd4becb80627965b6a00c7d3818e
   u/peterernst/tests/rss/assemble_feed_item_dump: acab1b6ec1216fe7c00a0c29f4bccbf455f4f4693f438c9077b1afcf6313b88b
-  u/peterernst/tests/rss/assemble_test_feed_item_dump: 4c4506fc656e60ae4ecc64ecb8ed62bab1a2d163400d91dc348b5137cee70c6b
+  u/peterernst/tests/rss/assemble_test_feed_item_dump: a4cb0c0617afb0df56b85ab614a479cc69a5cf51426e715dcf4aea81851982ac
   u/peterernst/tests/rss/dump_test_feed__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   u/peterernst/tests/rss/fetch_test_feed_items: 45c08a6ce1539a381a6f391b5f06c5725572e9804be1a22e52a70195f10749c7
   u/peterernst/tests/rss/test_feed__flow/+__flow_hash: 4e1df70596e8857a15059ae74826c35a67f18d4ca4e68c99019ade470d20c767

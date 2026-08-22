@@ -99,7 +99,33 @@ const OPTIONS: Omit<ConversionOptions, "visitor"> = {
   linkStyle: LinkStyle.Inline,
   captureSvg: true,
   inferDimensions: true,
-  excludeSelectors: ["style", "script"],
+  excludeSelectors: [
+    // Tier 1 — non-content
+    "style", "script", "noscript", "template", "meta",
+    "link[rel='stylesheet']", "link[rel='preload']", "link[rel='prefetch']",
+
+    // Tier 2 — layout chrome
+    "header", "footer", "nav", "aside",
+    "[role='navigation']", "[role='banner']", "[role='complementary']",
+    "[aria-hidden='true']",
+
+    // Tier 3 — ads & tracking
+    "[class*='advert']", //"[class*='ad']", "[id*='ad']",
+    "[class*='promo']", "[class*='banner']",
+    "[class*='cookie']", "[class*='tracking']", "[class*='analytics']",
+    "iframe",
+
+    // Tier 4 — interactive junk
+    "button", "input", "select", "textarea",
+    "[role='button']", "[role='dialog']", "[role='tooltip']",
+    "[role='tablist']", "[role='tab']", "[role='switch']",
+
+    // Tier 5 — CMS chrome
+    "[class*='sidebar']", "[class*='toolbar']", "[class*='breadcrumb']",
+    "[class*='pagination']", "[class*='share']", "[class*='social']",
+    "[class*='login']", "[class*='signup']",
+  ]
+
 };
 
 /**
@@ -119,10 +145,12 @@ const OPTIONS: Omit<ConversionOptions, "visitor"> = {
  *   no content.
  */
 export function convert_to_markdown(html: string, url?: string): string {
-  const result = convert(html ?? "-", {
-    ...OPTIONS,
-    visitor: createVisitor(url),
-  });
+  const
+    options = {
+      ...OPTIONS,
+      visitor: createVisitor(url),
+    };
+  const result = convert(html ?? "-", options);
 
   return (result.content ?? "-")
     .replaceAll(/⏎\n\n/g, "\n")

@@ -1,11 +1,20 @@
-// import * as wmill from "windmill-client"
+export async function main(url: string, body: object = {}, headers: Record<string, string> = {}) {
+  // 1. fetch raw page content
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify(body)
+  }),
+    html = await resp.text();
 
-export async function main(status: number, response: string) {
-
-  const json = JSON.parse(response);
+  // 2.  
 
   return {
-    status,
-    html: json.data[0].results[0].html
-  }
+    ok: resp.ok,
+    status: resp.status,
+    text: html.slice(0, 100),
+  };
 }

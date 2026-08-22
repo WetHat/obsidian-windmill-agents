@@ -72,13 +72,14 @@ export interface IItem {
   tags: string[];
   /** Item content as HTML fragment. */
   content: string;
+  media: IRssAsset[];
 }
 
 export interface IRssAsset {
   src: string; // hyperlink to object
   type: TAssetType;
-  width?: string; // optional embedding width
-  height?: string; // optional embedding height
+  width: number; // optional embedding width
+  height: number; // optional embedding height
 }
 
 /**
@@ -106,6 +107,55 @@ export interface IFlyweightFeed {
 //=====================
 
 /**
+ * Gather media associated with an RSS item.
+ * @param elem - The parsed RSS item
+ * @returns A media content list.
+ */
+function assembleMedia(elem: Record<string, any>): IRssAsset[] {
+  let
+    mediaContent = elem["media:content"] || elem["enclosure"],
+    media: IRssAsset[] | null = null;
+
+  if (!mediaContent) {
+    let group = elem["media:group"];
+    if (group) {
+      mediaContent = group["media:content"];
+    }
+  }
+
+  if (mediaContent && !Array.isArray(mediaContent)) {
+    mediaContent = [mediaContent];
+  }
+
+  if (mediaContent) {
+    media = mediaContent.map((mc: Record<string, any>): IRssAsset => {
+      const type: string = mc["@_type"] || mc["@_medium"];
+      let mediumType: TAssetType = '?';
+      if (type) {
+        if (type.includes("image")) {
+          mediumType = 'image';
+        } else if (type.match(/video|shock/)) {
+          mediumType = 'video';
+        } else if (type.includes("audio")) {
+          mediumType = 'audio';
+        }
+      }
+
+      let medium: IRssAsset = { src: mc["@_url"], type: mediumType, width: -1, height: -1 };
+      const
+        width: string = elem["@_width"],
+        height: string = elem["@_height"];
+      if (width && height) {
+        medium["width"] = parseInt(width);
+        medium["height"] = parseInt(height);
+      }
+      return medium;
+    });
+  }
+  return media ?? [];
+}
+
+/**
  * Get the _signature_ image associated with a feed or item
  * @param elem
  * @returns Image medium object, if available.
@@ -114,19 +164,13 @@ function assembleImage(elem: Record<string, unknown>): IRssAsset | null {
   let { image } = elem as any;
 
   if (typeof image === 'string') {
-    return { src: image, type: 'image' };
+    return { src: image, type: 'image', width: -1, height: -1 };
   }
 
   if (image && image.url) {
     const
       { url, width, height } = image as any,
-      img: IRssAsset = { src: url, type: 'image' };
-    if (width) {
-      img.width = width;
-    }
-    if (height) {
-      img.height = height;
-    }
+      img: IRssAsset = { src: url, type: 'image', width: width ?? -1, height: height ?? -1 };
     return img;
   }
 
@@ -141,32 +185,20 @@ function assembleImage(elem: Record<string, unknown>): IRssAsset | null {
   if (thumb) {
     const
       [width, height] = [thumb["@_width"], thumb["@_height"]],
-      img: IRssAsset = { src: thumb["@_url"], type: 'image' };
-    if (width) {
-      img.width = width;
-    }
-    if (height) {
-      img.height = height;
-    }
+      img: IRssAsset = { src: thumb["@_url"], type: 'image', width: width ?? -1, height: height ?? -1 };
     return img;
   }
 
   const enc = elem.enclosure as any;
   if (enc?.["@_type"]?.includes("image")) {
-    return { src: enc["@_url"], type: 'image' };
+    return { src: enc["@_assembleurl"], type: 'image', width: -1, height: -1 };
   }
 
   let media = elem["media:content"] as any;
   if (media && media["@_type"]?.includes("image")) {
     const
       [width, height] = [media["@_width"], media["@_height"]],
-      img: IRssAsset = { src: media["@_url"], type: 'image' };
-    if (width) {
-      img.width = width;
-    }
-    if (height) {
-      img.height = height;
-    }
+      img: IRssAsset = { src: media["@_url"], type: 'image', width: width ?? -1, height: height ?? -1 };
     return img;
   }
   return null;
@@ -351,10 +383,13 @@ const READER_OPTIONS: ParserOptions = {
     entry_data.tags = assembleTags(entry_data);
     entry_data.authors = assembleAuthors(entry_data);
 
-    const image = assembleImage(entry_data);
-    if (image) {
-      entry_data.image = image;
-    }
+    const media = assembleMedia(entry_data) ?? [];
+
+    // const image = assembleImage(entry_data);
+    // if (image) {
+    //   media.push(image);
+    // }
+    entry_data.media = media;
 
     const content: any = entry_data["content:encoded"] || entry_data.content || entry_data["dc:content"];
     if (content) {
@@ -406,6 +441,7 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
           published: (item_data.published ? new Date(item_data.published) : new Date()).toISOString(),
           tags: item_data.tags,
           content: item_data.content ?? '.',
+          media: item_data.media
         }
       return item;
     }) ?? [];

@@ -72,8 +72,8 @@ value:
                       value:
                         type: forloopflow
                         modules:
-                          - id: f
-                            summary: Dehydrate item
+                          - id: dehydrate
+                            summary: Dehydrate feed item
                             value:
                               type: script
                               input_transforms:
@@ -81,7 +81,7 @@ value:
                                   type: javascript
                                   expr: flow_input.iter.value
                               is_trigger: false
-                              path: u/peterernst/rss_feeds_triage/dehydrate_item
+                              path: u/peterernst/rss_feeds_triage/dehydrate_feed_item
                           - id: n
                             summary: Item Content to Markdown
                             value:
@@ -89,10 +89,10 @@ value:
                               input_transforms:
                                 html:
                                   type: javascript
-                                  expr: results.f.content
+                                  expr: results.dehydrate.content
                                 url:
                                   type: javascript
-                                  expr: results.f.link
+                                  expr: results.dehydrate.link
                               is_trigger: false
                               path: f/lib/html_to_markdown
                           - id: i
@@ -541,11 +541,13 @@ value:
 
                                     type: rssitem\r
 
-                                    title: \"${results.f.title}\"\r
+                                    title: \"${results.dehydrate.title}\"\r
 
-                                    published: \"${results.f.published}\"\r
+                                    published:
+                                    \"${results.dehydrate.published}\"\r
 
-                                    tags: [ ${results.f.tags.join(',')}]\r
+                                    tags: [
+                                    ${results.dehydrate.tags.join(',')}]\r
 
                                     ---\r
 
@@ -566,7 +568,7 @@ value:
                                   expr: results.c
                                 item:
                                   type: javascript
-                                  expr: results.f
+                                  expr: results.dehydrate
                                 markdown:
                                   type: javascript
                                   expr: results.n
