@@ -1,5 +1,5 @@
 // import * as wmill from "windmill-client"
-import { IItem, IFlyweightFeed } from "/f/lib/read_rss_feed";
+import { IItem, IRssAsset, IFlyweightFeed } from "/f/lib/read_rss_feed";
 
 const
   illegalRe = /[\/\?<>\\:\*\,|"\[\]#]/g,
@@ -38,6 +38,7 @@ export async function main(feed: IFlyweightFeed, item: IItem, markdown: string, 
 
   const
     filename = item.title.replace(illegalRe, "•").replace(new RegExp('\u00A0', 'g'), ' '), // and non-breaking spaces (thanks @Licat)
+    image_embed = (item.media.length > 0 && item.media[0].type === 'image') ? `![image|float:right|200](${item.media[0].src}) ` : '',
     note = `---
 type: rssitem
 link: "${item.link}"
@@ -54,7 +55,7 @@ reading_value: ${INDICATORS[reading_value]}
 reading_time: ${Math.round((markdown.match(/\p{L}{2,}\p{M}*|\p{N}+/gu)?.length ?? 0) / 150)}
 ---
 > [!tldr]
-> ${item.description}
+> ${image_embed}${item.description}
 
 # Highlights
 
@@ -76,6 +77,9 @@ ${analysis.analyst_notes.map(n => '- ' + n).join(`\n`)}
 
 ${markdown}
 
+- - -
+
+${item.media.map((m: IRssAsset) => `- ![${m.type}|${m.width > 0 ? m.width : 64}](${m.src})`).join('\n')}
 `;
 
   return {
