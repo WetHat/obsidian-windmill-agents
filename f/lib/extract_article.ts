@@ -2,6 +2,7 @@ import { ArticleData, Transformation, addTransformations, extractFromHtml } from
 import { IScrapedData, IScrapeResult } from "/f/lib/scrape_web_content_browserless"
 import { createClient } from "redis"
 import { convert_to_markdown } from "/f/lib/html_to_markdown"
+import { DOMParser } from "linkedom";
 
 const allowedAttributes: Record<string, string[]> = {
   h1: ["id"],
@@ -146,10 +147,156 @@ const tm: Transformation = {
 
 addTransformations(tm);
 
+/**
+ * @param head - The `<head>` element to search within.
+ * @param {string} name - Value of the `name` attribute of the `<META>` tags to look for.
+ * @returns  A list of strings containing all the values of all matching `<META>` elements.
+ */
+function getMetaByName(head: HTMLHeadElement, name: string): string[] {
+  const metas = [...head.querySelectorAll(`meta[name='${name}'][content]`)];
+  return metas.map(meta => meta.getAttribute("content")?.trim() ?? '');
+}
+
+/**
+ *
+ * @param {Element} head - The `<head>` element to search within.
+ * @param {string} property - Value of the `property` attribute of the `<META>` tags to look for.
+  * @returns  A list of strings containing all the values of all matching `<META>` elements.
+ */
+function getMetaByProperty(head: HTMLHeadElement, property: string): string[] {
+  const metas = [...head.querySelectorAll(`meta[property='${property}'][content]`)];
+  return metas.map(meta => meta.getAttribute("content")?.trim() ?? '');
+}
+
+export interface IArticleMeta {
+  title?: string;
+  author?: string | string[],
+  description?: string,
+  keywords?: string | string[],
+  image?: string,
+  publisher?: string,
+  published?: string,
+  [key: string]: string | string[];   // ← allows additional KV pairs
+}
+
+function extract_metadata(head: string): IArticleMeta {
+  const
+    parser = new DOMParser(),
+    dom = parser.parseFromString(`<html><head>${head}</head><body></body></html>`, "text/html");
+
+  const standard = [
+    "title",
+    "author",
+    "description",
+    "keywords",
+    "image"
+  ];
+
+  const og = [
+    'og:site_name',
+    'og:title',
+    'og:description',
+    'og:type',
+    'og:image',
+    'og:locale'
+  ];
+
+  const article = [
+    'article:publisher',
+    'article:author',
+    'article:published_time',
+    'article:tag'
+  ];
+
+  const twitter = [
+    "twitter:site",
+    "twitter:creator",
+    "twitter:title",
+    "twitter:description",
+    "twitter:image"
+  ];
+
+  const backfill: Record<string, string[]> = {
+    "title": ["og:title", "twitter:title"],
+    "author": ['article:author', 'creator', 'dc:creator', "twitter:creator"],
+    "description": ['og:description', "twitter:description"],
+    "keywords": ['article:tag'],
+    "image": ['og:image', "twitter:image"],
+    "publisher": ['article:publisher', "twitter:site"],
+    "published": ['article:published_time'],
+  };
+
+  // populate open graph property
+  const ograph: Record<string, string | string[]> = {};
+
+  // extract the standard porperties
+  for (let name of standard) {
+    const content = getMetaByName(dom.head, name);
+    if (content) {
+      ograph[name] = content;
+    }
+  }
+
+  // extract other OpenGraph metadata
+  for (let propgroup of [og, article, twitter]) {
+    // extract content for this property group
+    for (const property of propgroup) {
+      const content = getMetaByProperty(dom.head, property);
+      if (content) {
+        ograph[property] = content;
+      }
+    }
+  }
+
+  // normalize metadata
+  for (let key in ograph) {
+    const value = ograph[key];
+    if (Array.isArray(value)) {
+      switch (value.length) {
+        case 0:
+          delete ograph[key];
+          break;
+        case 1:
+          ograph[key] = value[0];
+          break;
+      }
+    }
+  }
+
+  // backfill missing properties
+  for (let key in backfill) {
+    if (!(key in ograph)) {
+      for (const source of backfill[key]) {
+        const content = ograph[source];
+        if (content) {
+          ograph[key] = content;
+          break;
+        }
+      }
+    }
+  }
+
+  // special handling for title
+  if (!("title" in ograph)) {
+    ograph["title"] = dom.title.innerText;
+  }
+
+  // cleanup keywords for Obsidian
+  const keywords = ograph["keywords"];
+  if ("keywords" in ograph && keywords) {
+    ograph["keywords"] = (Array.isArray(keywords) ? keywords : [keywords])
+      .map(k => typeof k === 'string' ? k.trim().toLowerCase().replace(/\s+/g, '-') : k)
+      .join(",");
+  }
+
+  return ograph;
+}
+
 export interface IMarkdownArticle {
   source: string,
   ttr: number,
   article: string,
+  meta: IArticleMeta
 }
 
 export async function extract_markdown_article(scraped: IScrapeResult): Promise<IMarkdownArticle> {
@@ -171,12 +318,13 @@ export async function extract_markdown_article(scraped: IScrapeResult): Promise<
   // 2. Create Markdown body
   const markdown = convert_to_markdown(articleData.content ?? "-", scraped.source);
 
-  // 3- Create Opengraph data
-  // TODO
+  // 3. Create Opengraph data
+  const og = extract_metadata(data.head);
 
   return {
     source: scraped.source,
     ttr: articleData.ttr ?? 0,
+    meta: og,
     article: markdown
   };
 }

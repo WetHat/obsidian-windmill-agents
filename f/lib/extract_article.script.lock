@@ -2,7 +2,8 @@
   "dependencies": {
     "@extractus/article-extractor": "latest",
     "redis": "latest",
-    "@xberg-io/html-to-markdown": "latest"
+    "@xberg-io/html-to-markdown": "latest",
+    "linkedom": "latest"
   }
 }
 //bun.lock
@@ -14,6 +15,7 @@
       "dependencies": {
         "@extractus/article-extractor": "latest",
         "@xberg-io/html-to-markdown": "latest",
+        "linkedom": "latest",
         "redis": "latest",
       },
     },
