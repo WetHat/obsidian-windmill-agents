@@ -174,9 +174,10 @@ export interface IArticleMeta {
   description?: string,
   keywords?: string | string[],
   image?: string,
+  site?: string,
   publisher?: string,
   published?: string,
-  [key: string]: string | string[];   // ← allows additional KV pairs
+  [key: string]: string | string[] | undefined;   // ← allows additional KV pairs
 }
 
 function extract_metadata(head: string): IArticleMeta {
@@ -219,6 +220,7 @@ function extract_metadata(head: string): IArticleMeta {
   const backfill: Record<string, string[]> = {
     "title": ["og:title", "twitter:title"],
     "author": ['article:author', 'creator', 'dc:creator', "twitter:creator"],
+    "site": ['og:site_name', 'twitter:site'],
     "description": ['og:description', "twitter:description"],
     "keywords": ['article:tag'],
     "image": ['og:image', "twitter:image"],

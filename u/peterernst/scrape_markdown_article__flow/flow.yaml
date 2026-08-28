@@ -1,0 +1,81 @@
+summary: Scrape a web article as Markdown
+description: ''
+value:
+  modules:
+    - id: scrape
+      summary: Scrape web content browserless -> Redis
+      value:
+        type: script
+        input_transforms:
+          url:
+            type: javascript
+            expr: flow_input.url
+        is_trigger: false
+        path: f/lib/scrape_web_content_browserless
+    - id: extract
+      summary: Extract main article as Markdown
+      value:
+        type: script
+        input_transforms:
+          scraped:
+            type: javascript
+            expr: results.scrape
+        is_trigger: false
+        path: f/lib/extract_markdown_article
+    - id: assemble_note
+      summary: Assemble Markdown note
+      value:
+        type: script
+        input_transforms:
+          article:
+            type: javascript
+            expr: results.extract
+        hash: null
+        is_trigger: false
+        path: u/peterernst/scrape_markdown_article/assemble_note
+    - id: finalize_extraction
+      summary: Finalize
+      value:
+        type: rawscript
+        content: '!inline finalize.ts'
+        input_transforms:
+          markdown:
+            type: javascript
+            expr: results.assemble_note
+          scraped:
+            type: javascript
+            expr: results.scrape
+        lock: '!inline finalize.lock'
+        language: bun
+    - id: a
+      summary: Write content to vault Inbox
+      value:
+        type: script
+        input_transforms:
+          content:
+            type: javascript
+            expr: results.finalize_extraction
+          extension:
+            type: static
+            value: md
+          filename:
+            type: static
+            value: Scrape Test
+          vault:
+            type: static
+            value: WetHat LAb
+        is_trigger: false
+        path: f/lib/save_to_Inbox
+  groups: []
+schema:
+  order:
+    - url
+  properties:
+    url:
+      type: string
+      description: Link to web page
+      default: ''
+      placeholder: http(s)://...
+      title: Url
+  required: []
+tag: bun
