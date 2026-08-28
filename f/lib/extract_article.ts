@@ -146,7 +146,13 @@ const tm: Transformation = {
 
 addTransformations(tm);
 
-export async function main(scraped: IScrapeResult) {
+export interface IMarkdownArticle {
+  source: string,
+  ttr: number,
+  article: string,
+}
+
+export async function extract_markdown_article(scraped: IScrapeResult): Promise<IMarkdownArticle> {
   // 0. fetch the scraped content from Redis.
   const client = createClient({ url: "redis://redis:6379" });
   await client.connect();
@@ -162,11 +168,19 @@ export async function main(scraped: IScrapeResult) {
     throw new Error(`Article extraction for "${scraped.source}" failed`);
   }
 
+  // 2. Create Markdown body
   const markdown = convert_to_markdown(articleData.content ?? "-", scraped.source);
+
+  // 3- Create Opengraph data
+  // TODO
 
   return {
     source: scraped.source,
-    ttr: articleData.ttr,
+    ttr: articleData.ttr ?? 0,
     article: markdown
   };
+}
+
+export async function main(scraped: IScrapeResult): Promise<IMarkdownArticle> {
+  return extract_markdown_article(scraped);
 }
