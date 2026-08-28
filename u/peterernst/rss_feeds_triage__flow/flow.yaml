@@ -1,4 +1,4 @@
-summary: Scan RSS feeds for high reading-value items
+summary: Scan RSS feeds for new articles
 description: Scans all RSS feeds configured in the `rss_feeds` table and returns
   new items with high reading value
 value:

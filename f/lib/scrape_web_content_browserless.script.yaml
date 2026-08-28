@@ -1,7 +1,8 @@
-summary: Build browserless request
+summary: Scrape web content browserless -> Redis
 description: This script was edited in place of flow
-  u/peterernst/mine_rss_feeds  by peterernst.
-lock: '!inline u/peterernst/bld_browserless_request.script.lock'
+  u/peterernst/scrape_web_browserless as a fork of
+  hub/11643/http/send_post_request by peterernst.
+lock: '!inline f/lib/scrape_web_content_browserless.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

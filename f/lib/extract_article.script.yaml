@@ -1,0 +1,16 @@
+summary: Extract main article as Markdown
+description: This script was edited in place of flow
+  u/peterernst/scrape_web_article  by peterernst.
+lock: '!inline f/lib/extract_article.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    scraped:
+      type: object
+      description: ''
+      default: null
+      format: resource-i_scrape_result
+  required:
+    - scraped

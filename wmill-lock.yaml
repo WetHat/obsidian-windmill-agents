@@ -1,10 +1,12 @@
 version: v2
 locks:
+  f/lib/extract_article: 998d1196ca98687cb980cbfe836d6afdda055a33b26cd04693a7d37da39dbf77
   f/lib/html_to_markdown: 86954bec234ad1a7c8666065fd52cfa2f1cd733980f9ffefd5991f2e059b44af
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
   f/lib/read_rss_feed: 53dc4344cabff231a00bf742f44d9f99b4890d0108b2ecb01ec2ee52a234b694
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
   f/lib/save_to_Inbox: 1f5af80b214d3ae309f9188311d35338f9e734b9d38c4563a6543b7ff4625c54
+  f/lib/scrape_web_content_browserless: 46aa57a2e0770185b4a84f2ada1191755390fa0bd19070b1e63d6a47fbd0b1b4
   f/lib/write_to_vault: 58bf96d193fc388b8a6f1564678bb7cff1be90bc2c74dd71d25269e3f9b26a72
   u/peterernst/bld_browserless_request: 4dc936a932e8489080625550c7f074858899bb3ec5c0ed37cd27e63372c5fdcf
   u/peterernst/drop_packet: 4b1059bc3b99d2e19001d8bf71382766ef4183f3e0ce08a3f3f359978002c705
@@ -18,6 +20,7 @@ locks:
   u/peterernst/mine_rss_feeds/j: c4241a1a8c4c0f461c2d77d6095bb2371ef23d2f8fd9044e09571ed9bfaa4028
   u/peterernst/mine_rss_feeds/select_feeds: 081e8f7372157731d392f7234df386120202876804ccf27c5f50b82036211ab2
   u/peterernst/mine_rss_feeds/select_hot_feeds: d13137b710003eabdc926e2f89cbb28c1df7971e7e2aa3480b847cb1cc6f1679
+  u/peterernst/prodigious_flow__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   u/peterernst/read_rss_feed: cdbc2b0ef5e1a0a3a8c57e3e0ea08fd5ee5d27a4acca7a1a5b87fbcb0dbd7941
   u/peterernst/rss_feeds_triage__flow/+__flow_hash: fa538259cf4b234c712a367d97adf25eff9fc23716bf84e3858c1e77e353475e
   u/peterernst/rss_feeds_triage__flow/+elect_feeds.pg.sql: b4c3b142b6365164ddfd4f696b67a9b4124ec2d71a1d3bd3ba6064adcea93565
