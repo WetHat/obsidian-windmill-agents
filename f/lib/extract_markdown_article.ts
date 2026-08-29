@@ -168,7 +168,7 @@ function getMetaByProperty(head: HTMLHeadElement, property: string): string[] {
   return metas.map(meta => meta.getAttribute("content")?.trim() ?? '');
 }
 
-export interface IArticleMeta {
+export interface IFrontmatter {
   title?: string;
   author?: string | string[],
   description?: string,
@@ -180,7 +180,7 @@ export interface IArticleMeta {
   [key: string]: string | string[] | undefined;   // ← allows additional KV pairs
 }
 
-function extract_metadata(head: string): IArticleMeta {
+function extract_metadata(head: string): IFrontmatter {
   const
     parser = new DOMParser(),
     dom = parser.parseFromString(`<html><head>${head}</head><body></body></html>`, "text/html");
@@ -298,7 +298,7 @@ export interface IMarkdownArticle {
   source: string,
   ttr: number,
   article: string,
-  meta: IArticleMeta
+  frontmatter: IFrontmatter
 }
 
 export async function extract_markdown_article(scraped: IScrapeResult): Promise<IMarkdownArticle> {
@@ -326,7 +326,7 @@ export async function extract_markdown_article(scraped: IScrapeResult): Promise<
   return {
     source: scraped.source,
     ttr: articleData.ttr ?? 0,
-    meta: og,
+    frontmatter: og,
     article: markdown
   };
 }

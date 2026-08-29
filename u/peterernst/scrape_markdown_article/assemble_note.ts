@@ -1,9 +1,9 @@
-import { IMarkdownArticle, IArticleMeta } from "/f/lib/extract_markdown_article"
+import { IMarkdownArticle, IFrontmatter } from "/f/lib/extract_markdown_article"
 import { stringify } from "yaml"
 
 export async function main(article: IMarkdownArticle): Promise<string> {
   const
-    meta: IArticleMeta = article.meta,
+    meta: IFrontmatter = article.frontmatter,
     frontmatter: Record<string, string | string[] | number> = {
       "type": "web-article",
       "link": article.source,
