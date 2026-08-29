@@ -122,7 +122,7 @@ const OPTIONS: Omit<ConversionOptions, "visitor"> = {
 
     // Tier 5 — CMS chrome
     "[class*='sidebar']", "[class*='toolbar']", "[class*='breadcrumb']",
-    "[class*='pagination']", "[class*='share']", "[class*='social']",
+    "[class*='pagination']", "[class*='social']",
     "[class*='login']", "[class*='signup']",
   ]
 
