@@ -1,4 +1,4 @@
-summary: Scrape web article
+summary: Add scrape test
 description: ''
 value:
   modules:
@@ -12,26 +12,24 @@ value:
             expr: flow_input.url
         is_trigger: false
         path: f/lib/scrape_web_content_browserless
-    - id: extract
-      summary: Extract main article as Markdown
+    - id: add
+      summary: Add Scrape Test Record
       value:
-        type: script
+        type: rawscript
+        content: '!inline add_scrape_test_record.ts'
         input_transforms:
           scraped:
             type: javascript
             expr: results.scrape
-        is_trigger: false
-        path: f/lib/extract_markdown_article
-    - id: finalize_extraction
-      summary: Finalize
-      value:
-        type: rawscript
-        content: '!inline finalize.ts'
-        input_transforms:
-          md_article:
-            type: javascript
-            expr: results.extract
-        lock: '!inline finalize.lock'
+        assets:
+          - access_type: w
+            columns:
+              body: w
+              head: w
+              url: w
+            kind: datatable
+            path: test/web_scrape_test
+        lock: '!inline add_scrape_test_record.lock'
         language: bun
   groups: []
 schema:
@@ -40,7 +38,7 @@ schema:
   properties:
     url:
       type: string
-      description: Link to web page
+      description: Hyperlink to the web page to add
       default: ''
       placeholder: http(s)://...
       title: Url

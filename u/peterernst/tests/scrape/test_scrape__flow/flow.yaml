@@ -1,0 +1,218 @@
+summary: Test article scraping
+description: ''
+value:
+  modules:
+    - id: normalize
+      summary: ''
+      value:
+        type: branchone
+        branches:
+          - summary: Expand default to all IDs
+            modules:
+              - id: rem
+                summary: Fetch all IDs
+                value:
+                  type: rawscript
+                  content: '!inline fetch_all_ids.ts'
+                  input_transforms: {}
+                  assets:
+                    - access_type: r
+                      columns:
+                        id: r
+                      kind: datatable
+                      path: test/web_scrape_test
+                  lock: '!inline fetch_all_ids.lock'
+                  language: bun
+            expr: flow_input.id.length === 0
+            parallel: true
+            skip_failure: true
+        default: []
+    - id: b
+      summary: For each test record
+      value:
+        type: forloopflow
+        modules:
+          - id: fetch
+            summary: Fetch Scraped Article
+            value:
+              type: script
+              input_transforms:
+                id:
+                  type: javascript
+                  expr: flow_input.iter.value
+              is_trigger: false
+              path: u/peterernst/tests/scrape/fetch_scraped_article
+          - id: assemble
+            summary: Assemble canonical Markdown dump
+            value:
+              type: script
+              input_transforms:
+                article:
+                  type: javascript
+                  expr: results.fetch
+              is_trigger: false
+              path: u/peterernst/tests/scrape/assemble_markdown_dump
+          - id: ref
+            summary: Fetch Markdown Reference
+            value:
+              type: rawscript
+              content: '!inline fetch_markdown_reference.ts'
+              input_transforms:
+                id:
+                  type: javascript
+                  expr: flow_input.iter.value
+              assets:
+                - access_type: r
+                  columns:
+                    markdown: r
+                  kind: datatable
+                  path: test/web_scrape_test
+              lock: '!inline fetch_markdown_reference.lock'
+              language: bun
+          - id: mode
+            summary: ''
+            value:
+              type: branchone
+              branches:
+                - summary: Update reference data
+                  modules:
+                    - id: update
+                      summary: Update Markdown reference
+                      value:
+                        type: rawscript
+                        content: '!inline update_markdown_reference.ts'
+                        input_transforms:
+                          id:
+                            type: javascript
+                            expr: flow_input.iter.value
+                          markdown:
+                            type: javascript
+                            expr: results.assemble
+                        assets:
+                          - access_type: w
+                            columns:
+                              markdown: w
+                            kind: datatable
+                            path: test/web_scrape_test
+                        lock: '!inline update_markdown_reference.lock'
+                        language: bun
+                  expr: flow_input.update || !results.ref
+                  parallel: true
+                  skip_failure: true
+              default:
+                - id: check
+                  summary: ''
+                  value:
+                    type: branchone
+                    branches:
+                      - summary: Test Passed
+                        modules:
+                          - id: rei
+                            summary: Pass message
+                            value:
+                              type: rawscript
+                              content: '!inline pass_message.ts'
+                              input_transforms:
+                                id:
+                                  type: javascript
+                                  expr: flow_input.iter.value
+                              lock: '!inline pass_message.lock'
+                              language: bun
+                        expr: results.assemble === results.ref
+                        parallel: true
+                        skip_failure: true
+                    default:
+                      - id: report
+                        summary: ''
+                        value:
+                          type: branchall
+                          branches:
+                            - summary: Reference Data -> Inbox
+                              modules:
+                                - id: rel
+                                  summary: Write reference article -> vault Inbox
+                                  value:
+                                    type: script
+                                    input_transforms:
+                                      content:
+                                        type: javascript
+                                        expr: results.ref
+                                      extension:
+                                        type: static
+                                        value: md
+                                      filename:
+                                        type: javascript
+                                        expr: '`\`Scrape Test ${flow_input.iter.value} (Reference)\``'
+                                      vault:
+                                        type: static
+                                        value: WetHat Lab
+                                    is_trigger: false
+                                    path: f/lib/save_to_Inbox
+                              expr: ''
+                              parallel: true
+                              skip_failure: false
+                            - summary: Actual Data -> Inbox
+                              modules:
+                                - id: rek
+                                  summary: Write actual article -> Inbox
+                                  value:
+                                    type: script
+                                    input_transforms:
+                                      content:
+                                        type: javascript
+                                        expr: results.assemble
+                                      extension:
+                                        type: static
+                                        value: md
+                                      filename:
+                                        type: javascript
+                                        expr: '`Scrape Test ${flow_input.iter.value} (Actual)`'
+                                      vault:
+                                        type: static
+                                        value: WetHat Lab
+                                    is_trigger: false
+                                    path: f/lib/save_to_Inbox
+                              expr: 'false'
+                              parallel: true
+                              skip_failure: false
+                          parallel: false
+                      - id: rej
+                        summary: Fail Message
+                        value:
+                          type: rawscript
+                          content: '!inline fail_message.ts'
+                          input_transforms:
+                            id:
+                              type: javascript
+                              expr: flow_input.iter.value
+                          lock: '!inline fail_message.lock'
+                          language: bun
+        iterator:
+          type: javascript
+          expr: results.normalize
+        parallel: false
+        skip_failures: true
+        squash: true
+  groups: []
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - id
+    - update
+  properties:
+    id:
+      type: array
+      description: List of IDs of scraped articles in the `web_scrape_test` table
+      default: []
+      items:
+        type: string
+      nullable: false
+      title: ID List
+    update:
+      type: boolean
+      description: Update the reference data (Markdown) for that record
+      default: false
+      title: Update Record
+  required: []
+tag: bun

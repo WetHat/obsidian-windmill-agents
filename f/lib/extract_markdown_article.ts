@@ -1,3 +1,4 @@
+
 import { ArticleData, Transformation, addTransformations, extractFromHtml } from "@extractus/article-extractor";
 import { IScrapedData, IScrapeResult } from "/f/lib/scrape_web_content_browserless"
 import { createClient } from "redis"
@@ -294,13 +295,67 @@ function extract_metadata(head: string): IFrontmatter {
   return ograph;
 }
 
+/**
+ * A web article extracted from scraped HTML and rendered as Markdown.
+ */
 export interface IMarkdownArticle {
+  /** Source URL the article was extracted from. */
   source: string,
+  /** Estimated reading time of the article in minutes. */
   ttr: number,
+  /** The main article content, rendered as Markdown. */
   article: string,
+  /** Metadata from the page's `<head>` (title, author, description, keywords, image, etc.). */
   frontmatter: IFrontmatter
 }
 
+/**
+ * Extracts the main article from raw HTML and renders it as Markdown with metadata frontmatter.
+ *
+ * 1. Locates the main article content via `extractFromHtml` (with code-block detection/fixes applied).
+ * 2. Converts the extracted HTML to Markdown via `convert_to_markdown`.
+ * 3. Builds an {@link IFrontmatter} object from `<head>` metadata (standard, OpenGraph, article, and Twitter tags).
+ *
+ * @param source - Source URL of the page; used for article extraction and Markdown link resolution.
+ * @param head - The page's `<head>` HTML; the source of the metadata.
+ * @param body - The page's `<body>` HTML; the source of the article content.
+ * @returns The article Markdown, its estimated time-to-read, and the frontmatter metadata.
+ * @throws If article extraction fails for the given source.
+ */
+export async function extract_markdown_article_from_html(source:string,head:string,body:string) : Promise<IMarkdownArticle> {
+    // 1. extract main article 
+  const articleData: ArticleData | null = await extractFromHtml(body, source, {
+    allowedAttributes
+  });
+
+  if (!articleData) {
+    throw new Error(`Article extraction for "${source}" failed`);
+  }
+
+  // 2. Create Markdown body
+  const markdown = convert_to_markdown(articleData.content ?? "-", source);
+
+  // 3. Create frontmatter data
+  const og = extract_metadata(head);
+
+  return {
+    source: source,
+    ttr: articleData.ttr ?? 0,
+    frontmatter: og,
+    article: markdown
+  };
+}
+
+/**
+ * Extracts the main article as Markdown from previously scraped page content.
+ *
+ * Looks up the scraped page (its `<head>` and `<body>` HTML) in Redis under `scraped.source`,
+ * then delegates to {@link extract_markdown_article_from_html}.
+ *
+ * @param scraped - Scrape result whose `source` URL is the Redis key holding the scraped HTML.
+ * @returns The article Markdown, its estimated time-to-read, and the frontmatter metadata.
+ * @throws If no Redis record exists for the given source.
+ */
 export async function extract_markdown_article(scraped: IScrapeResult): Promise<IMarkdownArticle> {
   // 0. fetch the scraped content from Redis.
   const client = createClient({ url: "redis://redis:6379" });
@@ -308,27 +363,11 @@ export async function extract_markdown_article(scraped: IScrapeResult): Promise<
 
   const data: IScrapedData = await client.json.get(scraped.source);
 
-  // 1. extract main article 
-  const articleData: ArticleData | null = await extractFromHtml(data.body, scraped.source, {
-    allowedAttributes
-  });
-
-  if (!articleData) {
-    throw new Error(`Article extraction for "${scraped.source}" failed`);
+  if (!data) {
+    throw new Error (`No Redis record for ${scraped.source}`)
   }
 
-  // 2. Create Markdown body
-  const markdown = convert_to_markdown(articleData.content ?? "-", scraped.source);
-
-  // 3. Create Opengraph data
-  const og = extract_metadata(data.head);
-
-  return {
-    source: scraped.source,
-    ttr: articleData.ttr ?? 0,
-    frontmatter: og,
-    article: markdown
-  };
+  return extract_markdown_article_from_html(scraped.source,data.head,data.body);
 }
 
 export async function main(scraped: IScrapeResult): Promise<IMarkdownArticle> {

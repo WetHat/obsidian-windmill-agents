@@ -1,0 +1,54 @@
+summary: Dump article -> Inbox
+description: ''
+value:
+  modules:
+    - id: fetch
+      summary: Fetch Scraped Article
+      value:
+        type: script
+        input_transforms:
+          id:
+            type: javascript
+            expr: flow_input.id
+        is_trigger: false
+        path: u/peterernst/tests/scrape/fetch_scraped_article
+    - id: a
+      summary: Assemble canonical Markdown dump
+      value:
+        type: script
+        input_transforms:
+          article:
+            type: javascript
+            expr: results.fetch
+        is_trigger: false
+        path: u/peterernst/tests/scrape/assemble_markdown_dump
+    - id: b
+      summary: Write content to vault Inbox
+      value:
+        type: script
+        input_transforms:
+          content:
+            type: javascript
+            expr: results.a
+          extension:
+            type: static
+            value: md
+          filename:
+            type: javascript
+            expr: '`Scraped Article ${flow_input.id}`'
+          vault:
+            type: static
+            value: WetHat Lab
+        is_trigger: false
+        path: f/lib/save_to_Inbox
+  groups: []
+schema:
+  order:
+    - id
+  properties:
+    id:
+      type: number
+      description: Id of the scraped article record in the `web_scrape_test` table
+      placeholder: Record ID
+      title: ID
+  required: []

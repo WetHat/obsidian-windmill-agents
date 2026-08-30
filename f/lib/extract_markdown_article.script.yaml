@@ -1,4 +1,4 @@
-summary: Extract main article as Markdown
+summary: Extract main article (Markdown)
 description: This script was edited in place of flow
   u/peterernst/scrape_web_article  by peterernst.
 lock: '!inline f/lib/extract_markdown_article.script.lock'

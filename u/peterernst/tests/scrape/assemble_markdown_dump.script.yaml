@@ -1,0 +1,15 @@
+summary: Assemble canonical Markdown dump
+description: Assemble scraped Markdown articles into a canonical representation for testing
+lock: '!inline u/peterernst/tests/scrape/assemble_markdown_dump.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    article:
+      type: object
+      description: ''
+      default: null
+      format: resource-i_markdown_article
+  required:
+    - article

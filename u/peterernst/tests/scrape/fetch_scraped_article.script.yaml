@@ -1,0 +1,15 @@
+summary: Fetch Scraped Article
+description: 'Retrieve a scraped article HTML fragments from the test db and
+  return it as Markdown Article '
+lock: '!inline u/peterernst/tests/scrape/fetch_scraped_article.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    id:
+      type: number
+      description: ''
+      default: null
+  required:
+    - id
