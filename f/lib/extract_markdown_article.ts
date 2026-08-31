@@ -5,6 +5,71 @@ import { createClient } from "redis"
 import { convert_to_markdown } from "/f/lib/html_to_markdown"
 import { DOMParser } from "linkedom";
 
+type TElementVisitor = (element: Element) => void;
+/**
+ * A Regular Expression to test for valid HTML attribute and class names.
+ */
+const VALIDATTR = /^[A-Za-z_:][A-Za-z0-9_:.-]*$/;
+const BADATTR = /style|-on:/;
+const TRIGGERVALUES = /code|lang|main|article/;
+
+const allowedTags: string[] = [
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "u",
+  "b",
+  "i",
+  "em",
+  "strong",
+  "mark",
+  "small",
+  "sup",
+  "sub",
+  "div",
+  "span",
+  "p",
+  "article",
+  "blockquote",
+  "section",
+  "details",
+  "summary",
+  "pre",
+  "code",
+  "ul",
+  "ol",
+  "li",
+  "dd",
+  "dl",
+  "table",
+  "th",
+  "tr",
+  "td",
+  "thead",
+  "tbody",
+  "tfoot",
+  "fieldset",
+  "legend",
+  "figure",
+  "figcaption",
+  "img",
+  "picture",
+  "video",
+  "audio",
+  "source",
+  "iframe",
+  "progress",
+  "br",
+  "hr",
+  "label",
+  "abbr",
+  "a",
+  "svg",
+];
+
 const allowedAttributes: Record<string, string[]> = {
   h1: ["id"],
   h2: ["id"],
@@ -22,9 +87,59 @@ const allowedAttributes: Record<string, string[]> = {
   source: ["src", "srcset", "data-srcset", "type", "media", "sizes"],
   iframe: ["src", "frameborder", "height", "width", "scrolling", "allow"],
   svg: ["width", "height"],
-  div: ["class"],
-  code: ["class"]
+  pre: ["class", "data-syntax-language"],
+  div: ["class", "data-syntax-language"],
+  code: ["class", "data-syntax-language"]
 };
+
+function scanElements(element: Element, visitor: TElementVisitor) {
+  visitor(element);
+  const children = element.children;
+  for (let i = 0; i < element.childElementCount; i++) {
+    scanElements(children[i], visitor);
+  }
+}
+
+/**
+ * Strips disallowed attributes from every element under `body` in place:
+ *
+ * - Removes attributes whose names fail {@link VALIDATTR} or match {@link BADATTR}
+ *   (inline styles and event handlers).
+ * - Rewrites `class` attributes containing multiple tokens down to only the tokens
+ *   matching {@link TRIGGERVALUES}; if none remain, the attribute is removed.
+ *
+ * @param body - Root element to clean; modified in place.
+ */
+function cleanAttributes(body: HTMLElement): void {
+  scanElements(body, (e: Element) => {
+    const
+      illegalNames: string[] = [],
+      attribs = e.attributes,
+      attCount = attribs.length;
+
+    for (let i = 0; i < attCount; i++) {
+      const
+        att = attribs[i],
+        name = att.name;
+      if (!VALIDATTR.test(name) || BADATTR.test(name)) {
+        illegalNames.push(name);
+      } else if (name === 'class' && att.value.includes(" ")) {
+        const
+          parts = att.value.split(/[\s\r\n]+/),
+          keep = parts.filter(p => TRIGGERVALUES.test(p));
+        if (keep.length === 0) {
+          illegalNames.push(name);
+        } else {
+          att.value = keep.join(' ')
+          console.log(`keeping attribute values: ${att.value}`)
+        }
+      }
+    }
+    for (const name of illegalNames) {
+      e.removeAttribute(name);
+    }
+  })
+}
 
 /**
  * Detect elements which are most likely code.
@@ -102,6 +217,7 @@ function cleanupFakeCode(body: HTMLElement): void {
   });
   // remove all elements that should not be there.
   body.querySelectorAll("code button, code style").forEach(el => { el.remove(); });
+  console.log(`cleanupFakeCode: body ${body.outerHTML.length}`)
 }
 
 function flattenSingleRowTable(table: HTMLTableElement): boolean {
@@ -136,12 +252,20 @@ const tm: Transformation = {
   ],
   pre: document => {
     const body = document.body;
+    console.log(`HTML pre-processing started: body ${body.outerHTML.length}`);
+
+    cleanAttributes(body);
+    console.log(`Attributes clean: body=${body.outerHTML.length}`)
     cleanupFakeCode(body);
     detectCode(body);
+    console.log(`preprocessed Body ${body.outerHTML.length}`);
     return document;
   },
   post: document => {
+    const body = document.documentElement;
+    console.log(`HTML post-processing started: content ${body.outerHTML.length}`);
     flattenTables(document.body);
+    console.log(`postprocessed content ${body.outerHTML.length}`);
     return document;
   }
 };
@@ -168,17 +292,30 @@ function getMetaByProperty(head: HTMLHeadElement, property: string): string[] {
   const metas = [...head.querySelectorAll(`meta[property='${property}'][content]`)];
   return metas.map(meta => meta.getAttribute("content")?.trim() ?? '');
 }
-
+/**
+ * Page metadata rendered as Markdown frontmatter, collected from the page's `<head>`
+ * meta tags (standard, OpenGraph, article, and Twitter) with fallback resolution
+ * between the tag families.
+ */
 export interface IFrontmatter {
+  /** Page title. */
   title?: string;
+  /** Author name(s). */
   author?: string | string[],
+  /** Short page description. */
   description?: string,
+  /** Tags/keywords, normalized to lowercase hyphenated form and comma-joined. */
   keywords?: string | string[],
+  /** Primary preview/social image URL. */
   image?: string,
+  /** Publishing site name (e.g. from `og:site_name`). */
   site?: string,
+  /** Publisher name. */
   publisher?: string,
+  /** Publish timestamp, as given by `article:published_time`. */
   published?: string,
-  [key: string]: string | string[] | undefined;   // ← allows additional KV pairs
+  /** Any further meta key/value pairs picked up verbatim. */
+  [key: string]: string | string[] | undefined;
 }
 
 function extract_metadata(head: string): IFrontmatter {
@@ -218,12 +355,17 @@ function extract_metadata(head: string): IFrontmatter {
     "twitter:image"
   ];
 
+  const rare = [
+    'mrf:tags',
+    'mrf:authors'
+  ];
+
   const backfill: Record<string, string[]> = {
     "title": ["og:title", "twitter:title"],
-    "author": ['article:author', 'creator', 'dc:creator', "twitter:creator"],
+    "author": ['mrf:authors', 'article:author', 'creator', 'dc:creator', "twitter:creator"],
     "site": ['og:site_name', 'twitter:site'],
     "description": ['og:description', "twitter:description"],
-    "keywords": ['article:tag'],
+    "keywords": ['article:tag', 'mrf:tags'],
     "image": ['og:image', "twitter:image"],
     "publisher": ['article:publisher', "twitter:site"],
     "published": ['article:published_time'],
@@ -241,7 +383,7 @@ function extract_metadata(head: string): IFrontmatter {
   }
 
   // extract other OpenGraph metadata
-  for (let propgroup of [og, article, twitter]) {
+  for (let propgroup of [og, article, twitter, rare]) {
     // extract content for this property group
     for (const property of propgroup) {
       const content = getMetaByProperty(dom.head, property);
@@ -322,27 +464,29 @@ export interface IMarkdownArticle {
  * @returns The article Markdown, its estimated time-to-read, and the frontmatter metadata.
  * @throws If article extraction fails for the given source.
  */
-export async function extract_markdown_article_from_html(source:string,head:string,body:string) : Promise<IMarkdownArticle> {
-    // 1. extract main article 
-  const articleData: ArticleData | null = await extractFromHtml(body, source, {
-    allowedAttributes
+export async function extract_markdown_article_from_html(source: string, head: string, body: string): Promise<IMarkdownArticle> {
+  console.log(`Attempt Article Extraction: head: ${head.length}; body ${body.length}`)
+  // 1. extract main article 
+  const articleData: ArticleData | null = await extractFromHtml(`<html><head><title>Scraped</title></head><body>${body.replace(/<!--[\s\S]*?-->/g, "")}</body></html>`, source, {
+    allowedAttributes,
+    allowedTags
   });
 
   if (!articleData) {
-    throw new Error(`Article extraction for "${source}" failed`);
+    throw new Error(`Article extraction for "${source}" failed: Head ${head.length}; Body ${body.length}`);
   }
 
-  // 2. Create Markdown body
-  const markdown = convert_to_markdown(articleData.content ?? "-", source);
-
-  // 3. Create frontmatter data
+  // 2. Create frontmatter data
   const og = extract_metadata(head);
+
+  // 3. Create Markdown body
+  const markdown = convert_to_markdown(`<html><head>${head}</head><body>${articleData.content ?? "-"}</body></html>`, source);
 
   return {
     source: source,
     ttr: articleData.ttr ?? 0,
     frontmatter: og,
-    article: markdown
+    article: markdown,
   };
 }
 
@@ -364,10 +508,10 @@ export async function extract_markdown_article(scraped: IScrapeResult): Promise<
   const data: IScrapedData = await client.json.get(scraped.source);
 
   if (!data) {
-    throw new Error (`No Redis record for ${scraped.source}`)
+    throw new Error(`No Redis record for ${scraped.source}`)
   }
 
-  return extract_markdown_article_from_html(scraped.source,data.head,data.body);
+  return extract_markdown_article_from_html(scraped.source, data.head, data.body);
 }
 
 export async function main(scraped: IScrapeResult): Promise<IMarkdownArticle> {

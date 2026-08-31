@@ -1,5 +1,5 @@
 summary: Test article scraping
-description: ''
+description: Use this flow to find regressions in the article extraction process
 value:
   modules:
     - id: normalize
@@ -26,7 +26,18 @@ value:
             expr: flow_input.id.length === 0
             parallel: true
             skip_failure: true
-        default: []
+        default:
+          - id: ren
+            summary: Pass through
+            value:
+              type: rawscript
+              content: '!inline pass_through.deno.ts'
+              input_transforms:
+                x:
+                  type: javascript
+                  expr: flow_input.id
+              lock: ''
+              language: deno
     - id: b
       summary: For each test record
       value:
@@ -142,7 +153,7 @@ value:
                                         value: md
                                       filename:
                                         type: javascript
-                                        expr: '`\`Scrape Test ${flow_input.iter.value} (Reference)\``'
+                                        expr: '`Scrape Test ${flow_input.iter.value} (Reference)`'
                                       vault:
                                         type: static
                                         value: WetHat Lab
@@ -206,7 +217,7 @@ schema:
       description: List of IDs of scraped articles in the `web_scrape_test` table
       default: []
       items:
-        type: string
+        type: number
       nullable: false
       title: ID List
     update:

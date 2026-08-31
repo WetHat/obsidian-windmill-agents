@@ -7,6 +7,7 @@ export async function main(article: IMarkdownArticle): Promise<string> {
 |Property| Value |
 | --- | --- |
 | ttr | ${article.ttr}|
+| link| ${article.source} |
 ${Object.entries(article.frontmatter).map(([k,v]) => `|${k}|${v}|`).join('\n')}
 
 # Article

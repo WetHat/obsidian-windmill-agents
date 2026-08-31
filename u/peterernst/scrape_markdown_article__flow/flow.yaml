@@ -1,5 +1,5 @@
 summary: Scrape web article
-description: ''
+description: Scrape a web page article as Markdown
 value:
   modules:
     - id: scrape

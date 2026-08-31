@@ -12,5 +12,6 @@ export async function main(scraped: IScrapeResult) {
     await sql`
       INSERT into web_scrape_test (url, head, body)
       VALUES (${scraped.source},${data.head},${data.body})`.execute();
+  await client.del(scraped.source);
   return scraped;
 }

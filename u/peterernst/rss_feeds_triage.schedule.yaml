@@ -1,0 +1,16 @@
+summary: RSS Triage
+description: Get RSS news ready for triage
+args: {}
+cron_version: v2
+enabled: true
+is_flow: true
+no_flow_overlap: false
+on_failure_exact: false
+on_failure_times: 1
+on_recovery_extra_args: {}
+on_recovery_times: 1
+on_success_extra_args: {}
+schedule: 0 0 */24 * * *
+script_path: u/peterernst/rss_feeds_triage
+timezone: Europe/Berlin
+ws_error_handler_muted: false
