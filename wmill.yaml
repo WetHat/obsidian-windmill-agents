@@ -13,7 +13,7 @@ includes:
 # extraIncludes: []
 
 # Glob patterns for files to exclude from sync
-excludes: []
+excludes: ["docker","docker/**"]
 
 # --- What to sync -----------------------------------------------------
 # "skip" options default to false (synced), "include" options default to false (not synced)
@@ -47,10 +47,10 @@ skipWorkspaceDependencies: false
 
 # Uncomment to include these (excluded by default):
 # Include schedules in sync
-# includeSchedules: true
+includeSchedules: true
 
 # Include triggers (http, websocket, kafka, etc.) in sync
-# includeTriggers: true
+includeTriggers: true
 
 # Include workspace users in sync
 # includeUsers: true
