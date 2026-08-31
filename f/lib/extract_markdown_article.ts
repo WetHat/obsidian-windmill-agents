@@ -272,40 +272,26 @@ const tm: Transformation = {
 
 addTransformations(tm);
 
-/**
- * @param head - The `<head>` element to search within.
- * @param {string} name - Value of the `name` attribute of the `<META>` tags to look for.
- * @returns  A list of strings containing all the values of all matching `<META>` elements.
- */
-function getMetaByName(head: HTMLHeadElement, name: string): string[] {
-  const metas = [...head.querySelectorAll(`meta[name='${name}'][content]`)];
-  return metas.map(meta => meta.getAttribute("content")?.trim() ?? '');
-}
+/** =========== */
+/** Frontmatter */
+/** =========== */
 
-/**
- *
- * @param {Element} head - The `<head>` element to search within.
- * @param {string} property - Value of the `property` attribute of the `<META>` tags to look for.
-  * @returns  A list of strings containing all the values of all matching `<META>` elements.
- */
-function getMetaByProperty(head: HTMLHeadElement, property: string): string[] {
-  const metas = [...head.querySelectorAll(`meta[property='${property}'][content]`)];
-  return metas.map(meta => meta.getAttribute("content")?.trim() ?? '');
-}
 /**
  * Page metadata rendered as Markdown frontmatter, collected from the page's `<head>`
  * meta tags (standard, OpenGraph, article, and Twitter) with fallback resolution
  * between the tag families.
  */
 export interface IFrontmatter {
+  /** Article type */
+  type?: string,
   /** Page title. */
   title?: string;
   /** Author name(s). */
-  author?: string | string[],
+  authors?: string[],
   /** Short page description. */
   description?: string,
   /** Tags/keywords, normalized to lowercase hyphenated form and comma-joined. */
-  keywords?: string | string[],
+  keywords?: string[],
   /** Primary preview/social image URL. */
   image?: string,
   /** Publishing site name (e.g. from `og:site_name`). */
@@ -314,104 +300,126 @@ export interface IFrontmatter {
   publisher?: string,
   /** Publish timestamp, as given by `article:published_time`. */
   published?: string,
+  /** article expiration date */
+  expires?: string,
   /** Any further meta key/value pairs picked up verbatim. */
   [key: string]: string | string[] | undefined;
 }
 
+function getMeta(head: HTMLHeadElement, key: string): string[] {
+  const
+    selector = `meta[name='${key}'][content],meta[property='${key}'][content]`,
+    metas = [...head.querySelectorAll(selector)];
+  return metas.map(meta => meta.getAttribute("content")?.trim() ?? '');
+}
+
+const standard = [
+  "title", // page title
+  "author", // page author
+  "description", // page description
+  "keywords", // page keywords
+  "image" // page image
+];
+
+/** OpenGraph (Facebook) */
+const og = [
+  'og:site_name', // publishing site name
+  'og:title', // OpenGraph page title
+  'og:description', // OpenGraph description
+  'og:type', // page content type
+  'og:image', // preview image URL
+  'og:locale', // content locale
+];
+
+const article = [
+  'article:publisher', // article publisher
+  'article:author', // article author
+  'article:published_time', // publish timestamp
+  'article:modified_time', // modification timestamp
+  'article:tag', // article tag
+  'article:expiration_time' // content expiration timestamp
+];
+
+/** Dublin Core - academic/archival*/
+const dc = [
+  "dc.title", // Dublin Core title
+  "dc.creator", // Dublin Core creator
+  "dc.subject", // subject/topic
+  "dc.description", // Dublin Core description
+  "dc.publisher", // Dublin Core publisher
+  "dc.date", // creation date
+  "dc.type", // content type
+  "dc.language", // content language
+  "dc.coverage", // spatiotemporal coverage
+  "dc.rights", // usage rights
+]
+
+const twitter = [
+  "twitter:site", // site Twitter handle
+  "twitter:creator", // author Twitter handle
+  "twitter:title", // Twitter card title
+  "twitter:description", // Twitter card description
+  "twitter:image" // Twitter card image
+];
+
+/** Marfeel */
+const mrf = [
+  'mrf:tags', // Marfeel tags
+  'mrf:authors' // Marfeel authors
+];
+
+type TBackfill = { keys: string[], join: boolean };
+
+const backfill: Record<string, TBackfill> = {
+  "title": { keys: ['title', "og:title", "dc:title", "twitter:title"], join: false },
+  "authors": { keys: ['author', 'mrf:authors', 'article:author', 'creator', 'dc:creator', "twitter:creator"], join: true },
+  "site": { keys: ['og:site_name', 'twitter:site'], join: false },
+  "description": { keys: ['description', 'og:description', "twitter:description"], join: false },
+  "keywords": { keys: ['article:tag', 'keywords', 'mrf:tags', 'dc.subject'], join: true },
+  "image": { keys: ['image', 'og:image', "twitter:image"], join: false },
+  "publisher": { keys: ['article:publisher', 'dc:publisher', "twitter:site"], join: false },
+  "published": { keys: ['article:published_time', 'article:modified_time'], join: false },
+  "type": { keys: ['og:type', `dc:type`], join: false },
+  "expires": { keys: ['article:expiration_time'], join: false },
+};
+
 function extract_metadata(head: string): IFrontmatter {
   const
     parser = new DOMParser(),
-    dom = parser.parseFromString(`<html><head>${head}</head><body></body></html>`, "text/html");
-
-  const standard = [
-    "title",
-    "author",
-    "description",
-    "keywords",
-    "image"
-  ];
-
-  const og = [
-    'og:site_name',
-    'og:title',
-    'og:description',
-    'og:type',
-    'og:image',
-    'og:locale'
-  ];
-
-  const article = [
-    'article:publisher',
-    'article:author',
-    'article:published_time',
-    'article:tag'
-  ];
-
-  const twitter = [
-    "twitter:site",
-    "twitter:creator",
-    "twitter:title",
-    "twitter:description",
-    "twitter:image"
-  ];
-
-  const rare = [
-    'mrf:tags',
-    'mrf:authors'
-  ];
-
-  const backfill: Record<string, string[]> = {
-    "title": ["og:title", "twitter:title"],
-    "author": ['mrf:authors', 'article:author', 'creator', 'dc:creator', "twitter:creator"],
-    "site": ['og:site_name', 'twitter:site'],
-    "description": ['og:description', "twitter:description"],
-    "keywords": ['article:tag', 'mrf:tags'],
-    "image": ['og:image', "twitter:image"],
-    "publisher": ['article:publisher', "twitter:site"],
-    "published": ['article:published_time'],
-  };
+    dom = parser.parseFromString(`<html><head>${head}</head><body></body></html>`, "text/html"),
+    headElement: HTMLHeadElement = dom.head,
+    title = dom.title?.innerText;
 
   // populate open graph property
   const ograph: Record<string, string | string[]> = {};
 
-  // extract the standard porperties
-  for (let name of standard) {
-    const content = getMetaByName(dom.head, name);
-    if (content) {
-      ograph[name] = content;
-    }
+  // 1. Special case for `title`
+  if (title) {
+    ograph['title'] = title;
   }
-
-  // extract other OpenGraph metadata
-  for (let propgroup of [og, article, twitter, rare]) {
-    // extract content for this property group
-    for (const property of propgroup) {
-      const content = getMetaByProperty(dom.head, property);
-      if (content) {
-        ograph[property] = content;
+  // 2. extract all configured metadata in order
+  for (const metagroup of [standard, og, article, dc, mrf, twitter]) {
+    // extract content for this group
+    for (const key of metagroup) {
+      const content = getMeta(headElement, key);
+      if (content.length > 0) {
+        ograph[key] = content;
       }
     }
   }
 
-  // normalize metadata
+  // 3. normalize metadata
   for (let key in ograph) {
     const value = ograph[key];
-    if (Array.isArray(value)) {
-      switch (value.length) {
-        case 0:
-          delete ograph[key];
-          break;
-        case 1:
-          ograph[key] = value[0];
-          break;
-      }
+    if (value.length === 1) {
+      ograph[key] = value[0]
     }
   }
 
-  // backfill missing properties
+  // 4. backfill properties
   for (let key in backfill) {
     if (!(key in ograph)) {
-      for (const source of backfill[key]) {
+      for (const source of backfill[key].keys) {
         const content = ograph[source];
         if (content) {
           ograph[key] = content;
@@ -419,19 +427,6 @@ function extract_metadata(head: string): IFrontmatter {
         }
       }
     }
-  }
-
-  // special handling for title
-  if (!("title" in ograph)) {
-    ograph["title"] = dom.title.innerText;
-  }
-
-  // cleanup keywords for Obsidian
-  const keywords = ograph["keywords"];
-  if ("keywords" in ograph && keywords) {
-    ograph["keywords"] = (Array.isArray(keywords) ? keywords : [keywords])
-      .map(k => typeof k === 'string' ? k.trim().toLowerCase().replace(/\s+/g, '-') : k)
-      .join(",");
   }
 
   return ograph;
