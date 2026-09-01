@@ -1,0 +1,17 @@
+services:
+  browserless:
+    image: ghcr.io/browserless/chromium
+    container_name: browserless
+    environment:
+      CONCURRENT: 2
+      TOKEN: "6R0W53R135510"
+      ENABLE_DEBUGGER: "false"
+    networks:
+      - wmnet
+    ports:
+      - "3000:3000"   # optional; remove if you don't need host access
+    restart: unless-stopped
+
+networks:
+  wmnet:
+    external: true
