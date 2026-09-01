@@ -1,0 +1,7 @@
+description: API key for OpenAI models in Windmill (api_key linked to secret
+  variable u/peterernst/openai_api_key)
+value:
+  api_key: PQHUuXEuUw2W/pfdleBNu+YbBnnfdZLhNw+QqnmLXXXSwhFqzZ1n6mzad1IguAxWdkYMJo2fs+sPeE7xIKWBG5+3HNzipxZxknVlLBq2CNo=
+  base_url: ''
+  organization_id: ''
+resource_type: openai
