@@ -9,7 +9,9 @@
 
 The main workflow is `u/peterernst/rss_feeds_triage`. It reads feed definitions from the Windmill `rss` datatable, caches normalized items in Redis, asks an OpenRouter-backed AI agent to analyze each new item, and writes the resulting Markdown note to the `WetHat Lab` vault Inbox.
 
-The repository also contains reusable vault, Markdown, RSS, Redis, and Browserless scripts, plus flows for RSS fixture testing. Browserless support is currently provided by shared scripts; there is no active `scrape_web_article` orchestration flow in the repository.
+A second production flow, `u/peterernst/scrape_markdown_article`, scrapes a single web page via a self-hosted Browserless service and writes the extracted Markdown article into the vault Inbox.
+
+The repository also contains reusable vault, Markdown, RSS, Redis, and Browserless scripts, plus regression-test flows for RSS parsing and article scraping. The `scrape_web_article` flow directories are placeholders for a planned orchestration flow; the working scrape pipeline is `scrape_markdown_article`.
 
 ## Architecture
 
@@ -42,11 +44,13 @@ flowchart TD
         COLD["drop_packet"]
     end
 
-    subgraph HELPERS["Reusable Browserless helpers"]
-        URL["article URL"]
-        SCRAPE["scrape_web_content_browserless"]
-        EXTRACT["extract_article"]
-        RESULT["Markdown article + time to read"]
+    subgraph SCRAPE["scrape_markdown_article flow"]
+        URL["url"]
+        SCRAPE["scrape_web_content_browserless<br/>rendered HTML -> Redis"]
+        EXTRACT["extract_markdown_article<br/>main-article extraction"]
+        FIN["finalize<br/>drop Redis cache"]
+        NOTE2["assemble_note"]
+        SAVE2["save_to_Inbox"]
     end
 
     RSS --> SEL
@@ -65,9 +69,11 @@ flowchart TD
     SAVE --> INBOX
     URL --> SCRAPE
     SCRAPE --> REDIS
-    SCRAPE --> EXTRACT
     REDIS --> EXTRACT
-    EXTRACT --> RESULT
+    EXTRACT --> FIN
+    FIN --> NOTE2
+    NOTE2 --> SAVE2
+    SAVE2 --> INBOX
 ```
 
 ### Production flow
@@ -82,6 +88,18 @@ flowchart TD
 8. `save_to_Inbox` writes the note below `/mnt/obsidianvaults/WetHat Lab/Inbox`.
 
 The outer feed loop is sequential and skips failed feeds. Item processing is also sequential and skips failed items, so one bad feed or article does not discard the rest of the batch.
+
+### Scrape flow
+
+1. `scrape_web_content_browserless` renders the page in a self-hosted Browserless browser (with stealth mode and ad-network request blocking) and stores the rendered `head` and `body` HTML in Redis under the source URL.
+2. `extract_markdown_article` reads the cached HTML, extracts the main article with `@extractus/article-extractor` plus custom tag/attribute sanitization, and converts it to Markdown with `html_to_markdown`. The result includes frontmatter metadata (title, author, site, image, description, published date) and a reading-time estimate.
+3. `finalize` deletes the Redis cache entry.
+4. `assemble_note` renders Obsidian frontmatter plus an intro callout (title, thumbnail image, description) above the article body.
+5. `save_to_Inbox` writes the note below `/mnt/obsidianvaults/WetHat Lab/Inbox`.
+
+### Schedules
+
+The `rss_feeds_triage` schedule runs the triage flow every 24 hours (Europe/Berlin timezone), with failure and recovery notifications.
 
 ## Project Structure
 
@@ -99,11 +117,11 @@ The outer feed loop is sequential and skips failed feeds. Item processing is als
 ├── f/lib/                      # Shared scripts
 │   ├── read_rss_feed.ts        # RSS/Atom parsing, normalization, and Redis cache
 │   ├── html_to_markdown.ts     # HTML to Markdown conversion
+│   ├── extract_markdown_article.ts # Main-article extraction from cached HTML
 │   ├── load_vault_file.ts      # Read a mounted vault file
 │   ├── save_to_Inbox.ts        # Write a note to the vault Inbox
 │   ├── write_to_vault.ts       # Write a file anywhere in the vault
-│   ├── scrape_web_content_browserless.ts # Browserless scrape and Redis cache
-│   └── extract_article.ts      # Extract and convert cached article HTML
+│   └── scrape_web_content_browserless.ts # Browserless scrape and Redis cache
 │
 └── u/peterernst/
     ├── rss_feeds_triage/       # Production feed scripts and SQL
@@ -115,10 +133,22 @@ The outer feed loop is sequential and skips failed feeds. Item processing is als
     │   └── assemble_note.ts
     ├── rss_feeds_triage__flow/ # Production orchestration
     │   └── flow.yaml
-    ├── tests/rss/               # Test-feed fixtures and regression flows
+    ├── rss_feeds_triage.schedule.yaml # Daily triage schedule
+    ├── scrape_markdown_article/    # Scrape-flow note assembly
+    │   └── assemble_note.ts
+    ├── scrape_markdown_article__flow/ # Production scrape orchestration
+    │   ├── flow.yaml
+    │   └── finalize.ts
+    ├── scrape_web_article/         # Placeholder for a planned flow
+    ├── tests/rss/               # RSS fixture and regression flows
     │   ├── add_test_feed__flow/
     │   ├── dump_test_feed__flow/
     │   ├── test_feed__flow/
+    │   └── *.ts
+    ├── tests/scrape/            # Scrape regression flows
+    │   ├── add_scrape_test__flow/
+    │   ├── dump_scraped_article__flow/
+    │   ├── test_scrape__flow/
     │   └── *.ts
     ├── Sandbox__flow/           # Experimental flow
     ├── drop_packet.ts           # No-op sink for feeds with no new items
@@ -136,6 +166,7 @@ TypeScript scripts use these Windmill-resolved dependencies:
 | `@extractus/feed-extractor` | RSS 2.0, Atom, and RSS 1.0 parsing |
 | `@extractus/article-extractor` | Main-article extraction from rendered HTML |
 | `@xberg-io/html-to-markdown` | Markdown conversion with link and media handling |
+| `linkedom` | Fast DOM parsing for article-HTML sanitization |
 | `redis` | Item and scraped-page storage |
 | `windmill-client` | Windmill datatable access |
 
@@ -143,11 +174,14 @@ The main flow expects:
 
 - A Windmill datatable named `rss` with an `rss_feeds` table containing `id`, `name`, `feed_url`, `item_limit`, `last_scan`, and `short_content`.
 - Redis at `redis://redis:6379`.
+- A self-hosted Browserless service at `http://browserless:3000` (see `docker/browserless/compose.yml`).
 - An OpenRouter resource at `u/peterernst/openrouter_windmill`.
 - An Obsidian vault mounted at `/mnt/obsidianvaults/WetHat Lab` with `Context Data/Subject Matter Domains.md` and an existing `Inbox/` directory.
 - Bun available on the Windmill worker, because the project default is `defaultTs: bun`.
 
 The RSS fixture flows additionally use a `test_feeds` table in the `rss` datatable. The fixture lookup expects at least `id`, `name`, `url`, and `xml` columns.
+
+The scrape regression flows use a Windmill datatable named `test` with a `web_scrape_test` table containing `id`, `url`, `head`, `body`, and `markdown` columns.
 
 ## Local Development
 
@@ -186,7 +220,7 @@ The test flows exercise feed parsing and Markdown conversion against reference c
    wmill flow preview u/peterernst/tests/rss/add_test_feed -d '{"url":"https://example.com/feed.xml"}'
    ```
 
-2. Dump selected fixture items to the `WetHat Lab` Inbox:
+2. Dump selected fixture items to the `WetHat Lab` Inbox. `items` holds zero-based item indices; an empty list dumps nothing:
 
    ```powershell
    wmill flow preview u/peterernst/tests/rss/dump_test_feed -d '{"feed_id":1,"items":[0,1]}'
@@ -199,13 +233,36 @@ The test flows exercise feed parsing and Markdown conversion against reference c
    wmill flow preview u/peterernst/tests/rss/test_feed -d '{"id":1,"update":true}'
    ```
 
+## Scrape Regression Tests
+
+The scrape test flows exercise the Browserless scrape and article-extraction pipeline against reference content stored in the `web_scrape_test` table of the `test` datatable.
+
+1. Scrape a URL and store its rendered HTML as a test record:
+
+   ```powershell
+   wmill flow preview u/peterernst/tests/scrape/add_scrape_test -d '{"url":"https://example.com/article"}'
+   ```
+
+2. Dump the extracted Markdown for a stored record to the `WetHat Lab` Inbox:
+
+   ```powershell
+   wmill flow preview u/peterernst/tests/scrape/dump_scraped_article -d '{"id":1}'
+   ```
+
+3. Compare extracted Markdown against the stored reference. `id` is an array; omit it to test every record. Use `update: true` to intentionally replace references. A failed comparison writes the reference and actual Markdown to the vault Inbox for side-by-side inspection:
+
+   ```powershell
+   wmill flow preview u/peterernst/tests/scrape/test_scrape -d '{"id":[1]}'
+   wmill flow preview u/peterernst/tests/scrape/test_scrape -d '{"id":[1],"update":true}'
+   wmill flow preview u/peterernst/tests/scrape/test_scrape -d '{}'
+   ```
+
 There is no automated root-level test command yet; `npm test` is still the placeholder from `package.json`.
 
 ## Current Gaps
 
-- No schedules or triggers are checked into this repository. Feed mining must be started manually or configured separately in Windmill.
-- Browserless scraping and article extraction are reusable scripts, but they are not currently wired into a checked-in orchestration flow.
 - `select_hot_feeds` and the related SQL helpers are available for experimentation but are not referenced by `rss_feeds_triage__flow`.
+- The `scrape_web_article` flow directories are empty placeholders; the working scrape pipeline is `scrape_markdown_article__flow`.
 
 ## License
 
