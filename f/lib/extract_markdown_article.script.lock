@@ -2,6 +2,7 @@
   "dependencies": {
     "@extractus/article-extractor": "latest",
     "redis": "latest",
+    "windmill-client": "latest",
     "@xberg-io/html-to-markdown": "latest",
     "linkedom": "latest"
   }
@@ -17,6 +18,7 @@
         "@xberg-io/html-to-markdown": "latest",
         "linkedom": "latest",
         "redis": "latest",
+        "windmill-client": "latest",
       },
     },
   },
@@ -84,6 +86,8 @@
     "redis": ["redis@6.2.1", "", { "dependencies": { "@redis/bloom": "6.2.1", "@redis/client": "6.2.1", "@redis/json": "6.2.1", "@redis/search": "6.2.1", "@redis/time-series": "6.2.1" } }, "sha512-Z9VHtgYs48PiQC77X9O2Er8Hj4T+5BtFjT91/vi5Is1D04N72cA946ZslM1ImJw8ZctFBZWAVjM7S5wJNeHMpg=="],
 
     "uhyphen": ["uhyphen@0.2.0", "", {}, "sha512-qz3o9CHXmJJPGBdqzab7qAYuW8kQGKNEuoHFYrBwV6hWIMcpAmxDLXojcHfFr9US1Pe6zUswEIJIbLI610fuqA=="],
+
+    "windmill-client": ["windmill-client@1.800.1", "", {}, "sha512-mCYP4mMMs+UYjzMklU20fWNTetFk4t62i7rbUu3iVZOAHOG26v3p6gIV+k1HZnHeBJWpKRB5a7lnNIgocQai8w=="],
 
     "dom-serializer/domelementtype": ["domelementtype@3.0.0", "", {}, "sha512-umCQid3jKbDmVjx8jGaW7uUykm4DEUeyV21hPxNMo2nV955DhUThwqyOIDtreepP31hl84X7G5U9ZfsWvIB3Pg=="],
 

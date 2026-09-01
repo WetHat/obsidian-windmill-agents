@@ -2,6 +2,7 @@
 import { ArticleData, Transformation, addTransformations, extractFromHtml } from "@extractus/article-extractor";
 import { IScrapedData, IScrapeResult } from "/f/lib/scrape_web_content_browserless"
 import { createClient } from "redis"
+import * as wmill from "windmill-client";
 import { convert_to_markdown } from "/f/lib/html_to_markdown"
 import { DOMParser } from "linkedom";
 
@@ -11,7 +12,7 @@ type TElementVisitor = (element: Element) => void;
  */
 const VALIDATTR = /^[A-Za-z_:][A-Za-z0-9_:.-]*$/;
 const BADATTR = /style|-on:/;
-const TRIGGERVALUES = /code|lang|main|article/;
+const TRIGGERVALUES = /code|lang|main|article|hljs/;
 
 const allowedTags: string[] = [
   "h1",
@@ -87,9 +88,9 @@ const allowedAttributes: Record<string, string[]> = {
   source: ["src", "srcset", "data-srcset", "type", "media", "sizes"],
   iframe: ["src", "frameborder", "height", "width", "scrolling", "allow"],
   svg: ["width", "height"],
-  pre: ["class", "data-syntax-language"],
-  div: ["class", "data-syntax-language"],
-  code: ["class", "data-syntax-language"]
+  pre: ["class", "data-syntax-language", "data-lang"],
+  div: ["class", "data-syntax-language", "data-lang"],
+  code: ["class", "data-syntax-language", "data-lang"]
 };
 
 function scanElements(element: Element, visitor: TElementVisitor) {
@@ -123,7 +124,7 @@ function cleanAttributes(body: HTMLElement): void {
         name = att.name;
       if (!VALIDATTR.test(name) || BADATTR.test(name)) {
         illegalNames.push(name);
-      } else if (name === 'class' && att.value.includes(" ")) {
+      } else if (name === 'class') {
         const
           parts = att.value.split(/[\s\r\n]+/),
           keep = parts.filter(p => TRIGGERVALUES.test(p));
@@ -428,7 +429,7 @@ function extract_metadata(head: string): IFrontmatter {
           const values = Array.isArray(value) ? value : [value];
 
           for (const v of values) {
-            v.split(/[\s;,]+?/).forEach(x => joined.add(x.trim()))
+            v.split(/[;,]/).forEach(x => joined.add(x.trim()))
           }
         }
       }
@@ -514,7 +515,9 @@ export async function extract_markdown_article_from_html(source: string, head: s
  */
 export async function extract_markdown_article(scraped: IScrapeResult): Promise<IMarkdownArticle> {
   // 0. fetch the scraped content from Redis.
-  const client = createClient({ url: "redis://redis:6379" });
+  const
+    url = await wmill.getVariable("f/lib/redis_client_url"),
+    client = createClient({ url });
   await client.connect();
 
   const data: IScrapedData = await client.json.get(scraped.source);

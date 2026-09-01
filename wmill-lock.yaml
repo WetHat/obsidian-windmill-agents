@@ -1,8 +1,8 @@
 version: v2
 locks:
   f/lib/extract_article: dbcc0d1a61d01816181ae4850b0247aab62a28e478dc89d05e2a2f70e2bff708
-  f/lib/extract_markdown_article: 8e9112293b18df1d0e85a8bf9bbae8a26b137a3f2aa9dd0fd89444b8603a87c4
-  f/lib/html_to_markdown: 9e6851e4fa04b6a2a8c06c06f629b2b06a6ab49cc54a89fed66f1dcc9769eb79
+  f/lib/extract_markdown_article: 62d47cbac25977faf6ba0e8c1f7ff987b3406bbbe603db4421baf3a628ccfb7f
+  f/lib/html_to_markdown: 5aaff9fa3b4dda9062d05b6e0d549ff29ddd83f9ff1cdd392e0bc8d3b7bbfbd7
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
   f/lib/read_rss_feed: 53dc4344cabff231a00bf742f44d9f99b4890d0108b2ecb01ec2ee52a234b694
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
@@ -77,10 +77,11 @@ locks:
   u/peterernst/tests/scrape/assemble_markdown_dump: 42cef451a3eab281f491020c3202c83168b65af9af044230cda48fd0640df406
   u/peterernst/tests/scrape/dump_scraped_article__flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   u/peterernst/tests/scrape/fetch_scraped_article: 3a283c295c8b0e63dfd4619ff4cc535c38af2e2c516dc94812095d8b5012af79
-  u/peterernst/tests/scrape/test_scrape__flow/+__flow_hash: 7e993bf5eddcc81af30ce524551538c30f39657bc7433f2a063091ee09a00249
+  u/peterernst/tests/scrape/test_scrape__flow/+__flow_hash: a4f9e64e590b58674753cef2a3fa8ba4bf9e4dab72ca74738874b676619a829a
   u/peterernst/tests/scrape/test_scrape__flow/+ail_message.ts: 06df871c13d7735ae5d9a80be6eee3e66f0a5802ad109471c637932983f07e8f
   u/peterernst/tests/scrape/test_scrape__flow/+ass_message.ts: 788d3ecad60a05d8fdfafd9652ce6688462e595a0fec20299cde3ba832191682
-  u/peterernst/tests/scrape/test_scrape__flow/+ass_through.deno.ts: 0e6dd11d43843334fa0ff3cc45451173553adadc0e28202a3710734a4439c589
+  u/peterernst/tests/scrape/test_scrape__flow/+ass_through.ts: 5f6a7a32845c7e2d32e1ee1534dcf471a7bf1b141c798650b5624fa2d0797148
+  u/peterernst/tests/scrape/test_scrape__flow/+eference_data_update_mesage.ts: 3fc1f618c4ae5fd083fd10e3565b1731e5ed2f7b8c1b2075a32da0d563c43637
   u/peterernst/tests/scrape/test_scrape__flow/+etch_all_ids.ts: 2f95d31f4a92043144a9f8be71c77561ee4f26dc9e72479d96b2ac22576c16d8
   u/peterernst/tests/scrape/test_scrape__flow/+etch_markdown_reference.ts: 4bd04f3600efa00087c3049210f09129484ad730a2fa382d52b7b9cfaff1c5e2
   u/peterernst/tests/scrape/test_scrape__flow/+pdate_markdown_reference.ts: bb8092a941e138c657fecbb4c269953ddce8889fe7b3a039c53f52d5a0406d65

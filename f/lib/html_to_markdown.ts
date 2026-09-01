@@ -97,6 +97,7 @@ const OPTIONS: Omit<ConversionOptions, "visitor"> = {
   extractMetadata: false,
   includeDocumentStructure: false,
   linkStyle: LinkStyle.Inline,
+  brInTables: false,
   captureSvg: true,
   inferDimensions: true,
   excludeSelectors: [

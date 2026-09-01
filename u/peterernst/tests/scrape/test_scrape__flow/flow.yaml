@@ -31,13 +31,13 @@ value:
             summary: Pass through
             value:
               type: rawscript
-              content: '!inline pass_through.deno.ts'
+              content: '!inline pass_through.ts'
               input_transforms:
                 x:
                   type: javascript
                   expr: flow_input.id
-              lock: ''
-              language: deno
+              lock: '!inline pass_through.lock'
+              language: bun
     - id: b
       summary: For each test record
       value:
@@ -106,6 +106,17 @@ value:
                             kind: datatable
                             path: test/web_scrape_test
                         lock: '!inline update_markdown_reference.lock'
+                        language: bun
+                    - id: reo
+                      summary: Reference data update mesage
+                      value:
+                        type: rawscript
+                        content: '!inline reference_data_update_mesage.ts'
+                        input_transforms:
+                          id:
+                            type: javascript
+                            expr: flow_input.iter.value
+                        lock: '!inline reference_data_update_mesage.lock'
                         language: bun
                   expr: flow_input.update || !results.ref
                   parallel: true
