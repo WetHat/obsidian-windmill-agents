@@ -418,17 +418,34 @@ function extract_metadata(head: string): IFrontmatter {
 
   // 4. backfill properties
   for (let key in backfill) {
-    if (!(key in ograph)) {
+    const metas = backfill[key];
+    if (metas.join) {
+      // join all meta content
+      const joined = new Set<string>();
       for (const source of backfill[key].keys) {
-        const content = ograph[source];
-        if (content) {
-          ograph[key] = content;
+        const value = ograph[source];
+        if (value) {
+          const values = Array.isArray(value) ? value : [value];
+
+          for (const v of values) {
+            v.split(/[\s;,]+?/).forEach(x => joined.add(x.trim()))
+          }
+        }
+      }
+      if (joined.size > 0) {
+        ograph[key] = [...joined];
+      }
+    } else if (!(key in ograph)) {
+      // pick first awailable metadata
+      for (const source of backfill[key].keys) {
+        const value = ograph[source];
+        if (value) {
+          ograph[key] = value;
           break;
         }
       }
     }
   }
-
   return ograph;
 }
 
