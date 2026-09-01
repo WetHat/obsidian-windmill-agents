@@ -221,7 +221,7 @@ value:
                                   value:
                                     kind: openrouter
                                     model: z-ai/glm-5.3-flash
-                                    resource: $res:u/peterernst/openrouter_windmill
+                                    resource: $res:u/peterernst/openrouter_api_key
                                 streaming:
                                   type: static
                                   value: false

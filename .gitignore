@@ -143,6 +143,5 @@ vite.config.ts.timestamp-*
 .vite/
 
 # secrets
-**/openai_windmill.resource.yaml
-u/peterernst/openrouter_windmill.variable.yaml
-u/peterernst/openrouter_windmill.resource.yaml
+**/*_api_key.resource.yaml
+**/*_api_key.variable.yaml
