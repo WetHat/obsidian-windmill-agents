@@ -27,7 +27,7 @@ value:
             value: Subject Matter Domains
           location:
             type: static
-            value: WetHat Lab/Context Data
+            value: WetHat Lab/Vault Backoffice/Context Data
         is_trigger: false
         path: f/lib/load_vault_file
     - id: b
