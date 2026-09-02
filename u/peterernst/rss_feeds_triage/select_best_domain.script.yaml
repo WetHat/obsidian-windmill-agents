@@ -1,0 +1,27 @@
+summary: Select best domain
+description: This script was edited in place of flow
+  u/peterernst/rss_feeds_triage  by peterernst.
+lock: '!inline u/peterernst/rss_feeds_triage/select_best_domain.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    domains:
+      type: array
+      description: ''
+      default: null
+      format: resource-i_domain
+      items:
+        type: object
+        properties:
+          domain:
+            type: string
+            description: ''
+            originalType: string
+          relevance:
+            type: number
+            description: ''
+      originalType: record[]
+  required:
+    - domains

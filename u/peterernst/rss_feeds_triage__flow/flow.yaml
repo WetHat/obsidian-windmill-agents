@@ -95,6 +95,198 @@ value:
                                   expr: results.dehydrate.link
                               is_trigger: false
                               path: f/lib/html_to_markdown
+                          - id: relevance
+                            summary: Domain Analysis Agent
+                            value:
+                              type: aiagent
+                              input_transforms:
+                                max_completion_tokens:
+                                  type: static
+                                  value: 64000
+                                max_iterations:
+                                  type: static
+                                  value: 10
+                                memory:
+                                  type: static
+                                  value:
+                                    kind: off
+                                output_schema:
+                                  type: static
+                                  value:
+                                    $schema: https://json-schema.org/draft/2020-12/schema
+                                    type: object
+                                    order:
+                                      - domain_relevance
+                                      - analyst_notes
+                                    properties:
+                                      analyst_notes:
+                                        type: array
+                                        description: Commentary, difficulties, or ambiguities encountered during
+                                          relevance determination
+                                        default: []
+                                        items:
+                                          type: string
+                                        title: Analyst Notes
+                                      domain_relevance:
+                                        type: array
+                                        description: Article relevance to configured domains
+                                        default: []
+                                        items:
+                                          type: object
+                                          properties:
+                                            domain:
+                                              type: string
+                                              description: Name of the subject matter domain
+                                              default: ''
+                                              nullable: false
+                                              title: Domain Name
+                                            relevance:
+                                              type: number
+                                              description: Relevance score of the subject matter domain
+                                              default: 0
+                                              max: 1
+                                              min: 0
+                                              nullable: false
+                                              placeholder: 0...1
+                                              title: Relevance
+                                        title: Domain Relevance
+                                    required:
+                                      - domain_relevance
+                                output_type:
+                                  type: static
+                                  value: text
+                                provider:
+                                  type: static
+                                  value:
+                                    kind: openrouter
+                                    model: z-ai/glm-5.3-flash
+                                    resource: $res:u/peterernst/openrouter_api_key
+                                streaming:
+                                  type: static
+                                  value: false
+                                system_prompt:
+                                  type: javascript
+                                  expr: "`# Primary Operation\r
+
+                                    Evaluate the relevance of an article to a
+                                    set of subject matter domains and create a
+                                    structured JSON report.\r
+
+                                    \r
+
+                                    # Subject Matter Domains\r
+
+                                    \r
+
+                                    ${results.h.data}\r
+
+                                    \r
+
+                                    # Input\r
+
+                                    A user message block containing an article
+                                    (Markdown) with frontmatter metadata:\r
+
+                                    - type: rssitem\r
+
+                                    - title: article title\r
+
+                                    - published: date when the article was
+                                    published\r
+
+                                    - tags: list of tags classifying the article
+                                    content\r
+
+                                    \r
+
+                                    # Success Criteria\r
+
+                                    - The provided article content is the sole
+                                    authoritative source of truth for the
+                                    analysis. No external knowledge or training
+                                    data may be used to supplement the
+                                    content.\r
+
+                                    - Every domain from Subject Matter Domains
+                                    has been fully addressed in
+                                    'domain_relevance'.\r
+
+                                    \r
+
+                                    # Contingencies\r
+
+                                    Content is missing/empty/too short to judge
+                                    -> score conservatively and state that
+                                    limitation\r
+
+                                    \r
+
+                                    # Deliverables\r
+
+                                    Exactly one JSON Object per the provided
+                                    schema and semantics defined below.\r
+
+                                    \r
+
+                                    ## 'domain_relevance'\r
+
+                                    One object per domain from Subject Matter
+                                    Domains. Each object must contain:\r
+
+                                    - 'domain': Exactly one name from Subject
+                                    Matter Domains\r
+
+                                    - 'relevance': Relevance per the Relevance
+                                    Scoring Rubric\r
+
+                                    \r
+
+                                    ## 'analyst_notes'\r
+
+                                    Limitations, uncertainties, or
+                                    meta‑observations about relevance
+                                    determination (1–2 sentences each). Each
+                                    note must specify whether it is explicit or
+                                    inferred\".\r
+
+                                    `"
+                                temperature:
+                                  type: static
+                                  value: 0
+                                user_attachments:
+                                  type: static
+                                  value: []
+                                user_message:
+                                  type: javascript
+                                  expr: "`---\r
+
+                                    type: rssitem\r
+
+                                    title: \"${results.dehydrate.title}\"\r
+
+                                    published:
+                                    \"${results.dehydrate.published}\"\r
+
+                                    tags: [
+                                    ${results.dehydrate.tags.join(',')}]\r
+
+                                    ---\r
+
+                                    \r
+
+                                    ${results.n}`"
+                              tools: []
+                          - id: best
+                            summary: Select best domain
+                            value:
+                              type: script
+                              input_transforms:
+                                domains:
+                                  type: javascript
+                                  expr: results.relevance.output.domain_relevance
+                              hash: null
+                              is_trigger: false
+                              path: u/peterernst/rss_feeds_triage/select_best_domain
                           - id: i
                             summary: Article Analysis Agent
                             value:
@@ -117,7 +309,6 @@ value:
                                     type: object
                                     order:
                                       - highlights
-                                      - domain_relevance
                                       - reading_values
                                       - analyst_notes
                                       - expires
@@ -129,32 +320,6 @@ value:
                                         items:
                                           type: string
                                         title: Analyst Notes
-                                      domain_relevance:
-                                        type: array
-                                        description: 'Article relevance to subject matter domains '
-                                        default: []
-                                        items:
-                                          type: object
-                                          properties:
-                                            domain:
-                                              type: string
-                                              description: Subject matter domain name
-                                              default: ''
-                                              nullable: false
-                                              title: Domain Name
-                                            relevance:
-                                              type: number
-                                              description: Relevance to subject matter domain
-                                              default: 0
-                                              max: 0
-                                              min: 1
-                                              nullable: false
-                                              title: Relevance
-                                          required:
-                                            - domain
-                                            - relevance
-                                        nullable: false
-                                        title: Domain Relevance
                                       expires:
                                         type: string
                                         description: ISO Date when the article is no longer relevant
@@ -229,11 +394,8 @@ value:
                                   type: javascript
                                   expr: "`# Primary Operation\r
 
-                                    Evaluate the relevance of an article to a
-                                    set of subject matter domains,\r
-
-                                    determine its reading value, and create a
-                                    structured JSON report.\r
+                                    Evaluate reading value of an article, and
+                                    create a structured JSON report.\r
 
                                     \r
 
@@ -242,16 +404,8 @@ value:
                                     - Your analysis will guide professionals and
                                     academics in prioritizing articles\r
 
-                                    - Style: Approachable, human-like, and
+                                    - Style: Approachable, organic, and
                                     optimized for the target audience.\r
-
-                                    \r
-
-                                    # Subject Matter Domains\r
-
-                                    \r
-
-                                    ${results.h.data}\r
 
                                     \r
 
@@ -269,6 +423,12 @@ value:
 
                                     - tags: list of tags classifying the article
                                     content\r
+
+                                    - domain: Name of the best fitting subject
+                                    matter domain of the article\r
+
+                                    - relevance: Relevance score to 'domain'
+                                    (0-100) of the article \r
 
                                     \r
 
@@ -328,19 +488,6 @@ value:
 
                                     \r
 
-                                    ## 'domain_relevance'\r
-
-                                    One object per domain from Subject Matter
-                                    Domains. Each object must contain:\r
-
-                                    - 'domain': Exactly one name from Subject
-                                    Matter Domains\r
-
-                                    - 'relevance': Relevance per the Relevance
-                                    Scoring Rubric\r
-
-                                    \r
-
                                     ## 'reading_values'\r
 
                                     Exactly 5 axis objects (one for each 'axis'
@@ -386,31 +533,6 @@ value:
 
                                     - 'value': Axis discriminator specific
                                     score:\r
-
-                                    \  - 'relevance': Judgment is strictly based
-                                    on the information explicitly present in the
-                                    content. No inferred, or supplemented
-                                    details from prior knowledge or training
-                                    data. When evidence is ambiguous,
-                                    incomplete, or borderline, the agent MUST
-                                    choose the **lower** score.\r
-
-                                    \    | Score | Meaning |\r
-
-                                    \    | ----- | ------- |\r
-
-                                    \    | 0 | Irrelevant (Outside the domain or
-                                    only tangentially related) |\r
-
-                                    \    | 1 | Peripheral (Related but not
-                                    directly useful for the target domain(s))
-                                    |\r
-
-                                    \    | 2 | Relevant (Addresses the domain(s)
-                                    but not an exact task/problem) |\r
-
-                                    \    | 3 | Highly relevant(Directly
-                                    addresses the domain(s)) |\r
 
                                     \  - 'actionability':\r
 
@@ -548,6 +670,10 @@ value:
                                     tags: [
                                     ${results.dehydrate.tags.join(',')}]\r
 
+                                    domain: \"${results.best.domain}\"\r
+
+                                    relevance: ${results.best.relevance}\r
+
                                     ---\r
 
                                     \r
@@ -562,6 +688,9 @@ value:
                                 analysis:
                                   type: javascript
                                   expr: results.i.output
+                                domain:
+                                  type: javascript
+                                  expr: results.best
                                 feed:
                                   type: javascript
                                   expr: results.c

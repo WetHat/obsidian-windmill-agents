@@ -1,6 +1,8 @@
 import { writeFile } from "fs/promises";
 import * as path from "path";
 
+const ILLEGAL = /[\/\?<>\\:\*\|":\[\]#]/g;
+
 /**
  * Writes a file into the specified Obsidian vault's Inbox folder.
  *
@@ -18,7 +20,11 @@ export async function main(
   extension: string,
   content: string): Promise<{ path: string }> {
 
-  const filePath = path.join(`/mnt/obsidianvaults/${vault}/Inbox`, `${filename}.${extension}`);
+  const
+    sanitizedFilename = filename
+      .replace(ILLEGAL, "•")
+      .replace(/'\u00A0'/g, ' '), // and non-breaking spaces (thanks @Licat)
+    filePath = path.join(`/mnt/obsidianvaults/${vault}/Inbox`, `${sanitizedFilename}.${extension}`);
   await writeFile(filePath, content);
   return { path: filePath };
 }

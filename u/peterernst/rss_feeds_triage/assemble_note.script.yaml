@@ -69,6 +69,11 @@ schema:
                 description: ''
                 originalType: string
           originalType: record[]
+    domain:
+      type: object
+      description: ''
+      default: null
+      format: resource-i_domain
     feed:
       type: object
       description: ''
@@ -89,4 +94,5 @@ schema:
     - feed
     - item
     - markdown
+    - domain
     - analysis
