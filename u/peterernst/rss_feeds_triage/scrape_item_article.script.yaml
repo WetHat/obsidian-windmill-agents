@@ -1,0 +1,16 @@
+summary: Scrape item article
+description: This script was edited in place of flow
+  u/peterernst/rss_feeds_triage  by peterernst.
+lock: '!inline u/peterernst/rss_feeds_triage/scrape_item_article.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    url:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - url

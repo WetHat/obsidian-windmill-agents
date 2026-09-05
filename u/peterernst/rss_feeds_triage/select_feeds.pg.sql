@@ -1,1 +1,1 @@
-Select id, name,feed_url, item_limit, last_scan FROM rss_feeds
+SELECT * FROM rss_feeds WHERE suspended IS NOT TRUE

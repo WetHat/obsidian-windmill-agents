@@ -9,7 +9,7 @@
 }
 //bun.lock
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 2,
   "configVersion": 1,
   "workspaces": {
     "": {
@@ -87,7 +87,7 @@
 
     "uhyphen": ["uhyphen@0.2.0", "", {}, "sha512-qz3o9CHXmJJPGBdqzab7qAYuW8kQGKNEuoHFYrBwV6hWIMcpAmxDLXojcHfFr9US1Pe6zUswEIJIbLI610fuqA=="],
 
-    "windmill-client": ["windmill-client@1.800.1", "", {}, "sha512-mCYP4mMMs+UYjzMklU20fWNTetFk4t62i7rbUu3iVZOAHOG26v3p6gIV+k1HZnHeBJWpKRB5a7lnNIgocQai8w=="],
+    "windmill-client": ["windmill-client@1.804.0", "", {}, "sha512-G8JxRKZU4AJ+kaF2b0+3sol7YJZuObICtUfptC8nQAgZEUEP9ylzwLjDEN7s8Iuj+HXZbkwF7GFNUvMW5p2StA=="],
 
     "dom-serializer/domelementtype": ["domelementtype@3.0.0", "", {}, "sha512-umCQid3jKbDmVjx8jGaW7uUykm4DEUeyV21hPxNMo2nV955DhUThwqyOIDtreepP31hl84X7G5U9ZfsWvIB3Pg=="],
 

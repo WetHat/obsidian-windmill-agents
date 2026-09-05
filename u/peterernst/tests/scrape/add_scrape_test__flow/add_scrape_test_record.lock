@@ -6,7 +6,7 @@
 }
 //bun.lock
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 2,
   "configVersion": 1,
   "workspaces": {
     "": {
@@ -31,6 +31,6 @@
 
     "redis": ["redis@6.2.1", "", { "dependencies": { "@redis/bloom": "6.2.1", "@redis/client": "6.2.1", "@redis/json": "6.2.1", "@redis/search": "6.2.1", "@redis/time-series": "6.2.1" } }, "sha512-Z9VHtgYs48PiQC77X9O2Er8Hj4T+5BtFjT91/vi5Is1D04N72cA946ZslM1ImJw8ZctFBZWAVjM7S5wJNeHMpg=="],
 
-    "windmill-client": ["windmill-client@1.799.0", "", {}, "sha512-aR5mYR9kUaPOeIS6w8QjwHg3LIcnCZrc+t1Zr5w799fr+a2w47EMLjABlhkjAisaGJ1adgLxzcn+pNpLxqFY4Q=="],
+    "windmill-client": ["windmill-client@1.804.0", "", {}, "sha512-G8JxRKZU4AJ+kaF2b0+3sol7YJZuObICtUfptC8nQAgZEUEP9ylzwLjDEN7s8Iuj+HXZbkwF7GFNUvMW5p2StA=="],
   }
 }

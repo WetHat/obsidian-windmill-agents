@@ -2,13 +2,13 @@
  * Scrapes a web page with the self-hosted Browserless service and stores the
  * full rendered HTML in Redis, keyed by the scraped URL.
  *
- * The doc comment on `main` documents its parameters and shows how to read the
- * content back out of Redis; `IScrapeResult` documents what `main` returns.
+ * `scrape_web_content` does the Browserless scrape and returns `IScrapedData`;
+ * `main` persists the result in Redis and returns `IScrapeResult`.
  */
 import { createClient } from "redis";
 
 /**
- * Result of a scrape run, as returned by `scrape_web_content`.
+ * Result of a scrape run, as returned by `main`.
  */
 export interface IScrapeResult {
   /** Whether the Browserless scrape succeeded (HTTP 2xx). */
@@ -23,8 +23,11 @@ export interface IScrapeResult {
  * The shape of the scraped data saved to redis
  */
 export interface IScrapedData {
+  ok: boolean,
+  status: number,
   head: string,
-  body: string
+  body: string,
+  [key: string]: string | boolean | number
 }
 
 function build_browserless_request(url: string) {
@@ -71,28 +74,18 @@ function build_browserless_request(url: string) {
 
 
 /**
- * Scrapes a web page via Browserless and caches the full rendered HTML in Redis,
- * with the scraped URL itself as the key.
+ * Scrapes a web page via Browserless and returns the rendered `head` and
+ * `body` HTML. Redis persistence happens in `main`, which calls this and
+ * stores the returned result under the scraped URL.
  *
  * Parameters:
  *   url - Absolute URL of the page to scrape, e.g. "https://example.com/page".
- *         Doubles as the Redis key the HTML is stored under, so make sure it is
- *         the canonical URL you want to read the content back with.
  *
  * Returns:
- *   IScrapeResult — see the interface above for field documentation
- *   (ok: scrape succeeded, status: Browserless HTTP status, source: the
- *   scraped URL, which is also the Redis key the HTML is stored under).
- *
- * Example — retrieve the scraped web content via client.get:
- *
- *   import { createClient } from "redis";
- *
- *   const client = createClient({ url: "redis://redis:6379" });
- *   await client.connect();
- *   const scrapedHtml = await client.get(scraped.source);
+ *   IScrapedData — ok: scrape succeeded, status: Browserless HTTP status,
+ *   head/body: rendered HTML of the page's head and body elements.
  */
-export async function scrape_web_content(url: string): Promise<IScrapeResult> {
+export async function scrape_web_content(url: string): Promise<IScrapedData> {
   const
     request = build_browserless_request(url),
     resp = await fetch(request.browserlessURL, {
@@ -119,18 +112,26 @@ export async function scrape_web_content(url: string): Promise<IScrapeResult> {
     }
   }
 
-  const client = createClient({ url: "redis://redis:6379" });
-  await client.connect();
-
-  await client.json.set(url, "$", { head, body });
-
   return {
     ok: resp.ok,
     status: resp.status,
-    source: url
-  };
+    head,
+    body
+  }
 }
 
 export async function main(url: string): Promise<IScrapeResult> {
-  return scrape_web_content(url);
+
+  const
+    scrapedHTML: IScrapedData = await scrape_web_content(url),
+    client = createClient({ url: "redis://redis:6379" });
+  await client.connect();
+
+  await client.json.set(url, "$", scrapedHTML);
+
+  return {
+    ok: scrapedHTML.ok,
+    status: scrapedHTML.status,
+    source: url
+  };
 }

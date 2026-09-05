@@ -82,19 +82,41 @@ value:
                                   expr: flow_input.iter.value
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/dehydrate_feed_item
-                          - id: n
-                            summary: Item Content to Markdown
+                          - id: content
+                            summary: ''
                             value:
-                              type: script
-                              input_transforms:
-                                html:
-                                  type: javascript
-                                  expr: results.dehydrate.content
-                                url:
-                                  type: javascript
-                                  expr: results.dehydrate.link
-                              is_trigger: false
-                              path: f/lib/html_to_markdown
+                              type: branchone
+                              branches:
+                                - summary: Short form item
+                                  modules:
+                                    - id: scrape
+                                      summary: Scrape item article
+                                      value:
+                                        type: script
+                                        input_transforms:
+                                          url:
+                                            type: javascript
+                                            expr: results.dehydrate.link
+                                        hash: null
+                                        is_trigger: false
+                                        path: u/peterernst/rss_feeds_triage/scrape_item_article
+                                  expr: results.c.short_content
+                                  parallel: true
+                                  skip_failure: true
+                              default:
+                                - id: n
+                                  summary: Item Content to Markdown
+                                  value:
+                                    type: script
+                                    input_transforms:
+                                      html:
+                                        type: javascript
+                                        expr: results.dehydrate.content
+                                      url:
+                                        type: javascript
+                                        expr: results.dehydrate.link
+                                    is_trigger: false
+                                    path: f/lib/html_to_markdown
                           - id: relevance
                             summary: Domain Analysis Agent
                             value:
@@ -159,7 +181,8 @@ value:
                                   type: static
                                   value:
                                     kind: openrouter
-                                    model: z-ai/glm-5.3-flash
+                                    model: ~deepseek/deepseek-v4-flash-latest
+                                    reasoning_effort: xhigh
                                     resource: $res:u/peterernst/openrouter_api_key
                                 streaming:
                                   type: static
@@ -274,7 +297,7 @@ value:
 
                                     \r
 
-                                    ${results.n}`"
+                                    ${results.content}`"
                               tools: []
                           - id: best
                             summary: Select best domain
@@ -678,7 +701,7 @@ value:
 
                                     \r
 
-                                    ${results.n}`"
+                                    ${results.content}`"
                               tools: []
                           - id: k
                             summary: Assemble Note
@@ -699,7 +722,7 @@ value:
                                   expr: results.dehydrate
                                 markdown:
                                   type: javascript
-                                  expr: results.n
+                                  expr: results.content
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/assemble_note
                           - id: g

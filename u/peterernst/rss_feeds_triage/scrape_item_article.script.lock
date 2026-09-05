@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "@extractus/article-extractor": "latest",
     "redis": "latest",
+    "@extractus/article-extractor": "latest",
     "windmill-client": "latest",
     "@xberg-io/html-to-markdown": "latest",
     "linkedom": "latest"

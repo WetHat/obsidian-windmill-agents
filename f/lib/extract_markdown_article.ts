@@ -88,9 +88,9 @@ const allowedAttributes: Record<string, string[]> = {
   source: ["src", "srcset", "data-srcset", "type", "media", "sizes"],
   iframe: ["src", "frameborder", "height", "width", "scrolling", "allow"],
   svg: ["width", "height"],
-  pre: ["class", "data-syntax-language", "data-lang"],
-  div: ["class", "data-syntax-language", "data-lang"],
-  code: ["class", "data-syntax-language", "data-lang"]
+  pre: ["class", "data-syntax-language", "data-lang", "language"],
+  div: ["class", "data-syntax-language", "data-lang", "language"],
+  code: ["class", "data-syntax-language", "data-lang", "language"]
 };
 
 function scanElements(element: Element, visitor: TElementVisitor) {
@@ -159,19 +159,16 @@ function detectCode(body: HTMLElement): void {
       block.replaceWith(pre_code);
     }
   });
-  body.querySelectorAll("[data-syntax-language],[class*=code]")
+  body.querySelectorAll("[data-syntax-language],[class*=code],[language]")
     .forEach(e => {
       // identify the <code> element
-      let code = e.localName === "code"
-        ? e
-        : e.querySelectorAll("pre > code");
+      let code = e.localName === "code" ? e : e.querySelector("code");
+      console.log(`detectCode: code=${code?.localName}`);
       if (!code) {
         // must make a `<code>` element
         const codeTxt = e.textContent?.trim() ?? "";
         code = e.ownerDocument.createElement("code");
-        let pre = e.localName === "pre"
-          ? e
-          : e.querySelector("pre");
+        let pre = e.localName === "pre" ? e : e.querySelector("pre");
         if (pre) {
           pre.append(code);
         } else {
@@ -182,16 +179,12 @@ function detectCode(body: HTMLElement): void {
         }
         code.textContent = codeTxt;
       }
-      const lang = e.getAttribute("data-syntax-language");
+      let lang = code.getAttribute("data-syntax-language");
+      if (!lang) {
+        lang = e.getAttribute("language")
+      }
       if (lang) {
-        const langClass = "language-" + lang;
-        if (code instanceof HTMLElement) {
-          code.className = langClass;
-        } else {
-          (code as NodeListOf<HTMLElement>).forEach(c => {
-            c.className = langClass;
-          });
-        }
+        code.className = "language-" + lang;
       }
     });
 }
@@ -477,7 +470,7 @@ export interface IMarkdownArticle {
  * @returns The article Markdown, its estimated time-to-read, and the frontmatter metadata.
  * @throws If article extraction fails for the given source.
  */
-export async function extract_markdown_article_from_html(source: string, head: string, body: string): Promise<IMarkdownArticle> {
+export async function extract_markdown_article(source: string, head: string, body: string): Promise<IMarkdownArticle> {
   console.log(`Attempt Article Extraction: head: ${head.length}; body ${body.length}`)
   // 1. extract main article 
   const articleData: ArticleData | null = await extractFromHtml(`<html><head><title>Scraped</title></head><body>${body.replace(/<!--[\s\S]*?-->/g, "")}</body></html>`, source, {
@@ -513,8 +506,8 @@ export async function extract_markdown_article_from_html(source: string, head: s
  * @returns The article Markdown, its estimated time-to-read, and the frontmatter metadata.
  * @throws If no Redis record exists for the given source.
  */
-export async function extract_markdown_article(scraped: IScrapeResult): Promise<IMarkdownArticle> {
-  // 0. fetch the scraped content from Redis.
+export async function main(scraped: IScrapeResult): Promise<IMarkdownArticle> {
+ // 0. fetch the scraped content from Redis.
   const
     url = await wmill.getVariable("f/lib/redis_client_url"),
     client = createClient({ url });
@@ -526,9 +519,5 @@ export async function extract_markdown_article(scraped: IScrapeResult): Promise<
     throw new Error(`No Redis record for ${scraped.source}`)
   }
 
-  return extract_markdown_article_from_html(scraped.source, data.head, data.body);
-}
-
-export async function main(scraped: IScrapeResult): Promise<IMarkdownArticle> {
-  return extract_markdown_article(scraped);
+  return extract_markdown_article(scraped.source, data.head, data.body);
 }
