@@ -1,7 +1,7 @@
 import * as wmill from "windmill-client"
-import { IMarkdownArticle, extract_markdown_article_from_html } from "/f/lib/extract_markdown_article"
+import { IArticle, extract_markdown_article } from "/f/lib/extract_markdown_article"
 
-export async function main(id: number): Promise<IMarkdownArticle> {
+export async function main(id: number): Promise<IArticle> {
   const
     sql = wmill.datatable('test'),
     record = await sql`SELECT * from web_scrape_test where id = ${id}`.fetchOne();
@@ -10,5 +10,5 @@ export async function main(id: number): Promise<IMarkdownArticle> {
     throw new Error(`No record for scraped content with id ${id} in the database`);
   }
   
-  return extract_markdown_article_from_html(record.url,record.head,record.body);
+  return extract_markdown_article(record.url,record.head,record.body);
 }

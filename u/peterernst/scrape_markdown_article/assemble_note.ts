@@ -1,7 +1,7 @@
-import { IMarkdownArticle, IFrontmatter } from "/f/lib/extract_markdown_article"
+import { IArticle, IFrontmatter } from "/f/lib/extract_markdown_article"
 import { stringify } from "yaml"
 
-export async function main(article: IMarkdownArticle): Promise<string> {
+export async function main(article: IArticle): Promise<string> {
   const
     meta: IFrontmatter = article.frontmatter,
     frontmatter: Record<string, string | string[] | number> = {

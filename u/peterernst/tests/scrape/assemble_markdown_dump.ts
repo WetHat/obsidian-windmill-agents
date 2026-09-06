@@ -1,6 +1,6 @@
-import { IMarkdownArticle } from "/f/lib/extract_markdown_article"
+import { IArticle } from "/f/lib/extract_markdown_article"
 
-export async function main(article: IMarkdownArticle): Promise<string> {
+export async function main(article: IArticle): Promise<string> {
   // let x = await wmill.getVariable('u/user/foo')
   return `# Metadata
   
@@ -8,7 +8,7 @@ export async function main(article: IMarkdownArticle): Promise<string> {
 | --- | --- |
 | ttr | ${article.ttr}|
 | link| ${article.source} |
-${Object.entries(article.frontmatter).map(([k,v]) => `|${k}|${v}|`).join('\n')}
+${Object.entries(article.frontmatter).map(([k, v]) => `|${k}|${v}|`).join('\n')}
 
 # Article
 

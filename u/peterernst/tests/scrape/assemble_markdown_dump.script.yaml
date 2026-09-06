@@ -10,6 +10,6 @@ schema:
       type: object
       description: ''
       default: null
-      format: resource-i_markdown_article
+      format: resource-i_article
   required:
     - article
