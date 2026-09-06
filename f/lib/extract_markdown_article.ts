@@ -444,33 +444,31 @@ function extract_metadata(head: string): IFrontmatter {
 }
 
 /**
- * A web article extracted from scraped HTML and rendered as Markdown.
+ * A web article extracted from scraped HTML.
  */
-export interface IMarkdownArticle {
+export interface IArticle {
   /** Source URL the article was extracted from. */
   source: string,
   /** Estimated reading time of the article in minutes. */
   ttr: number,
-  /** The main article content, rendered as Markdown. */
+  /** The main article content as HTML or Markdown. */
   article: string,
   /** Metadata from the page's `<head>` (title, author, description, keywords, image, etc.). */
   frontmatter: IFrontmatter
 }
 
 /**
- * Extracts the main article from raw HTML and renders it as Markdown with metadata frontmatter.
+ * Extracts the main article from raw HTML with metadata frontmatter.
  *
- * 1. Locates the main article content via `extractFromHtml` (with code-block detection/fixes applied).
- * 2. Converts the extracted HTML to Markdown via `convert_to_markdown`.
- * 3. Builds an {@link IFrontmatter} object from `<head>` metadata (standard, OpenGraph, article, and Twitter tags).
+ * Locates the main article content via `extractFromHtml` (with code-block detection/fixes applied).
  *
  * @param source - Source URL of the page; used for article extraction and Markdown link resolution.
  * @param head - The page's `<head>` HTML; the source of the metadata.
  * @param body - The page's `<body>` HTML; the source of the article content.
- * @returns The article Markdown, its estimated time-to-read, and the frontmatter metadata.
+ * @returns The article content (HTML), its estimated time-to-read, and the frontmatter metadata.
  * @throws If article extraction fails for the given source.
  */
-export async function extract_markdown_article(source: string, head: string, body: string): Promise<IMarkdownArticle> {
+export async function extract_article(source: string, head: string, body: string): Promise<IArticle> {
   console.log(`Attempt Article Extraction: head: ${head.length}; body ${body.length}`)
   // 1. extract main article 
   const articleData: ArticleData | null = await extractFromHtml(`<html><head><title>Scraped</title></head><body>${body.replace(/<!--[\s\S]*?-->/g, "")}</body></html>`, source, {
@@ -485,29 +483,56 @@ export async function extract_markdown_article(source: string, head: string, bod
   // 2. Create frontmatter data
   const og = extract_metadata(head);
 
-  // 3. Create Markdown body
-  const markdown = convert_to_markdown(`<html><head>${head}</head><body>${articleData.content ?? "-"}</body></html>`, source);
-
   return {
     source: source,
     ttr: articleData.ttr ?? 0,
     frontmatter: og,
-    article: markdown,
+    article: articleData.content ?? '',
   };
+}
+
+/**
+ * Extracts the main article from raw page HTML and returns it as Markdown.
+ *
+ * Runs {@link extract_article} to locate and sanitize the main article content
+ * (with code-block detection/fixes applied), then rebuilds a full document from
+ * the page's `head` and the extracted article HTML and converts it to Markdown
+ * via {@link convert_to_markdown}, resolving relative links against `source`.
+ * Only the content changes representation: `article.article` holds the Markdown,
+ * while `source`, `ttr`, and `frontmatter` are passed through unchanged from
+ * {@link extract_article}. An empty extraction result is converted as the
+ * placeholder `-`.
+ *
+ * @param source - Source URL of the page; used for article extraction and Markdown link resolution.
+ * @param head - The page's `<head>` HTML; the source of the metadata.
+ * @param body - The page's `<body>` HTML; the source of the article content.
+ * @returns The article content as Markdown, its estimated time-to-read, and the frontmatter metadata.
+ * @throws If article extraction fails for the given source.
+ */
+export async function extract_markdown_article(source: string, head: string, body: string): Promise<IArticle> {
+
+  const article: IArticle = await extract_article(source, head, body);
+
+  // replace HTML with Markdown content
+  article.article = convert_to_markdown(`<html><head>${head}</head><body>${article.article ?? "-"}</body></html>`, source);
+
+  return article
 }
 
 /**
  * Extracts the main article as Markdown from previously scraped page content.
  *
- * Looks up the scraped page (its `<head>` and `<body>` HTML) in Redis under `scraped.source`,
- * then delegates to {@link extract_markdown_article_from_html}.
+ * Windmill entry point. Looks up the scraped page (its `<head>` and `<body>`
+ * HTML) in Redis under `scraped.source` — as stored by
+ * `f/lib/scrape_web_content_browserless` — then delegates to
+ * {@link extract_markdown_article}.
  *
  * @param scraped - Scrape result whose `source` URL is the Redis key holding the scraped HTML.
- * @returns The article Markdown, its estimated time-to-read, and the frontmatter metadata.
- * @throws If no Redis record exists for the given source.
+ * @returns An {@link IArticle} with the article content as Markdown, its estimated time-to-read, and the frontmatter metadata.
+ * @throws If no Redis record exists for the given source, or if article extraction fails for it.
  */
-export async function main(scraped: IScrapeResult): Promise<IMarkdownArticle> {
- // 0. fetch the scraped content from Redis.
+export async function main(scraped: IScrapeResult): Promise<IArticle> {
+  // 0. fetch the scraped content from Redis.
   const
     url = await wmill.getVariable("f/lib/redis_client_url"),
     client = createClient({ url });

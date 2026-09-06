@@ -1,10 +1,10 @@
 version: v2
 locks:
   f/lib/extract_article: dbcc0d1a61d01816181ae4850b0247aab62a28e478dc89d05e2a2f70e2bff708
-  f/lib/extract_markdown_article: 7a95f2a25e1a17c90cfd2c56d5e0256a239177e3b6d8ba46fba51a8fa96dd941
+  f/lib/extract_markdown_article: e74cb01de6b1688be175252a09eff2256047910f7b845462e206a05361d7d7c7
   f/lib/html_to_markdown: 5aaff9fa3b4dda9062d05b6e0d549ff29ddd83f9ff1cdd392e0bc8d3b7bbfbd7
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
-  f/lib/read_rss_feed: 53dc4344cabff231a00bf742f44d9f99b4890d0108b2ecb01ec2ee52a234b694
+  f/lib/read_rss_feed: bd597710dfe4fa1e8c1c538c2735e7e494d54f379ec8567a4876424fa8f908f8
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
   f/lib/save_to_Inbox: 3a3f1c5f1775fcca1be77441d886157c8713db3fa23936446b3264d4cc8bf20e
   f/lib/scrape_web_content_browserless: c20e66a4ad78eb21becf29ce7161ead4e47e1d3b74f038ae0a3899c04e7fdfe2

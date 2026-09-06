@@ -395,7 +395,7 @@ const READER_OPTIONS: ParserOptions = {
     if (content) {
       entry_data.content = (typeof content === "string" ? content : content["#text"]) ?? entry_data.description as string;
     } else {
-      entry_data.content = entry_data.description
+      entry_data.content = '- - -'
     }
 
     let title = entry_data.title as any;
