@@ -35,7 +35,7 @@ value:
       value:
         type: forloopflow
         modules:
-          - id: c
+          - id: feed
             summary: Read Feed
             value:
               type: script
@@ -94,29 +94,38 @@ value:
                                       value:
                                         type: script
                                         input_transforms:
-                                          url:
+                                          item:
                                             type: javascript
-                                            expr: results.dehydrate.link
+                                            expr: results.dehydrate
                                         hash: null
                                         is_trigger: false
                                         path: u/peterernst/rss_feeds_triage/scrape_item_article
-                                  expr: results.c.short_content
+                                  expr: results.feed.short_content
                                   parallel: true
                                   skip_failure: true
                               default:
-                                - id: n
-                                  summary: Item Content to Markdown
+                                - id: p
+                                  summary: Pass item thru
                                   value:
-                                    type: script
+                                    type: rawscript
+                                    content: '!inline pass_item_thru.ts'
                                     input_transforms:
-                                      html:
+                                      x:
                                         type: javascript
-                                        expr: results.dehydrate.content
-                                      url:
-                                        type: javascript
-                                        expr: results.dehydrate.link
-                                    is_trigger: false
-                                    path: f/lib/html_to_markdown
+                                        expr: results.dehydrate
+                                    lock: '!inline pass_item_thru.lock'
+                                    language: bun
+                          - id: mditem
+                            summary: Item -> Markdown
+                            value:
+                              type: script
+                              input_transforms:
+                                item:
+                                  type: javascript
+                                  expr: results.content
+                              hash: null
+                              is_trigger: false
+                              path: u/peterernst/rss_feeds_triage/item_to_markdown
                           - id: relevance
                             summary: Domain Analysis Agent
                             value:
@@ -285,19 +294,17 @@ value:
 
                                     type: rssitem\r
 
-                                    title: \"${results.dehydrate.title}\"\r
+                                    title: \"${results.mditem.title}\"\r
 
-                                    published:
-                                    \"${results.dehydrate.published}\"\r
+                                    published: \"${results.mditem.published}\"\r
 
-                                    tags: [
-                                    ${results.dehydrate.tags.join(',')}]\r
+                                    tags: [ ${results.mditem.tags.join(',')}]\r
 
                                     ---\r
 
                                     \r
 
-                                    ${results.content}`"
+                                    ${results.mditem.content}`"
                               tools: []
                           - id: best
                             summary: Select best domain
@@ -310,421 +317,469 @@ value:
                               hash: null
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/select_best_domain
-                          - id: i
-                            summary: Article Analysis Agent
+                          - id: ttr
+                            summary: ''
                             value:
-                              type: aiagent
-                              input_transforms:
-                                max_completion_tokens:
-                                  type: static
-                                  value: 128000
-                                max_iterations:
-                                  type: static
-                                  value: 10
-                                memory:
-                                  type: static
+                              type: branchone
+                              branches:
+                                - summary: Too short for analysis
+                                  modules:
+                                    - id: r
+                                      summary: Assemble plain note
+                                      value:
+                                        type: rawscript
+                                        content: '!inline assemble_plain_note.ts'
+                                        input_transforms:
+                                          domain:
+                                            type: javascript
+                                            expr: results.best
+                                          feed:
+                                            type: javascript
+                                            expr: results.feed
+                                          item:
+                                            type: javascript
+                                            expr: results.mditem
+                                        lock: '!inline assemble_plain_note.lock'
+                                        language: bun
+                                  expr: results.mditem.ttr < 3
+                                  parallel: true
+                                  skip_failure: true
+                              default:
+                                - id: i
+                                  summary: Article Analysis Agent
                                   value:
-                                    kind: off
-                                output_schema:
-                                  type: static
-                                  value:
-                                    $schema: https://json-schema.org/draft/2020-12/schema
-                                    type: object
-                                    order:
-                                      - highlights
-                                      - reading_values
-                                      - analyst_notes
-                                      - expires
-                                    properties:
-                                      analyst_notes:
-                                        type: array
-                                        description: Limitations, uncertainties, or meta‑observations about the article
-                                        default: []
-                                        items:
-                                          type: string
-                                        title: Analyst Notes
-                                      expires:
-                                        type: string
-                                        description: ISO Date when the article is no longer relevant
-                                        default: ''
-                                        nullable: false
-                                        title: Expiration Date
-                                      highlights:
-                                        type: array
-                                        description: Article highlights
-                                        default: []
-                                        items:
-                                          type: string
-                                        title: Highlights
-                                      reading_values:
-                                        type: array
-                                        description: 'Article reading values. One for each axis enum value '
-                                        default: []
-                                        items:
+                                    type: aiagent
+                                    input_transforms:
+                                      max_completion_tokens:
+                                        type: static
+                                        value: 128000
+                                      max_iterations:
+                                        type: static
+                                        value: 10
+                                      memory:
+                                        type: static
+                                        value:
+                                          kind: off
+                                      output_schema:
+                                        type: static
+                                        value:
+                                          $schema: https://json-schema.org/draft/2020-12/schema
                                           type: object
+                                          order:
+                                            - highlights
+                                            - reading_values
+                                            - analyst_notes
+                                            - expires
                                           properties:
-                                            value:
-                                              type: integer
-                                              description: Axis score
-                                              default: 0
-                                              max: 3
-                                              min: 0
-                                            axis:
+                                            analyst_notes:
+                                              type: array
+                                              description: Limitations, uncertainties, or meta‑observations about the article
+                                              default: []
+                                              items:
+                                                type: string
+                                              title: Analyst Notes
+                                            expires:
                                               type: string
-                                              description: Axis discriminator
+                                              description: ISO Date when the article is no longer relevant
                                               default: ''
-                                              disableCreate: true
-                                              enum:
-                                                - actionability
-                                                - novelty
-                                                - impact
-                                                - rigor
-                                                - depth
-                                              enumLabels: {}
                                               nullable: false
-                                            rationale:
-                                              type: string
-                                              description: A brief citation of specific elements from the content that justify
-                                                the value (1-2 sentences)
-                                              default: ''
-                                              title: Rationale
+                                              title: Expiration Date
+                                            highlights:
+                                              type: array
+                                              description: Article highlights
+                                              default: []
+                                              items:
+                                                type: string
+                                              title: Highlights
+                                            reading_values:
+                                              type: array
+                                              description: 'Article reading values. One for each axis enum value '
+                                              default: []
+                                              items:
+                                                type: object
+                                                properties:
+                                                  value:
+                                                    type: integer
+                                                    description: Axis score
+                                                    default: 0
+                                                    max: 3
+                                                    min: 0
+                                                  axis:
+                                                    type: string
+                                                    description: Axis discriminator
+                                                    default: ''
+                                                    disableCreate: true
+                                                    enum:
+                                                      - actionability
+                                                      - novelty
+                                                      - impact
+                                                      - rigor
+                                                      - depth
+                                                    enumLabels: {}
+                                                    nullable: false
+                                                  rationale:
+                                                    type: string
+                                                    description: A brief citation of specific elements from the content that justify
+                                                      the value (1-2 sentences)
+                                                    default: ''
+                                                    title: Rationale
+                                                required:
+                                                  - axis
+                                                  - value
+                                                  - rationale
+                                              length: 5
+                                              nullable: false
+                                              title: Reading Values
                                           required:
-                                            - axis
-                                            - value
-                                            - rationale
-                                        length: 5
-                                        nullable: false
-                                        title: Reading Values
-                                    required:
-                                      - highlights
-                                      - domain_relevance
-                                      - reading_values
-                                      - analyst_notes
-                                      - expires
-                                output_type:
-                                  type: static
-                                  value: text
-                                provider:
-                                  type: static
+                                            - highlights
+                                            - domain_relevance
+                                            - reading_values
+                                            - analyst_notes
+                                            - expires
+                                      output_type:
+                                        type: static
+                                        value: text
+                                      provider:
+                                        type: static
+                                        value:
+                                          kind: openrouter
+                                          model: z-ai/glm-5.3-flash
+                                          resource: $res:u/peterernst/openrouter_api_key
+                                      streaming:
+                                        type: static
+                                        value: false
+                                      system_prompt:
+                                        type: javascript
+                                        expr: "`# Primary Operation\r
+
+                                          Evaluate reading value of an article,
+                                          and create a structured JSON report.\r
+
+                                          \r
+
+                                          # Context\r
+
+                                          - Your analysis will guide
+                                          professionals and academics in
+                                          prioritizing articles\r
+
+                                          - Style: Approachable, organic, and
+                                          optimized for the target audience.\r
+
+                                          \r
+
+                                          # Input\r
+
+                                          A user message block containing an
+                                          article (Markdown) with frontmatter
+                                          metadata:\r
+
+                                          - type: rssitem\r
+
+                                          - title: article title\r
+
+                                          - published: date when the article was
+                                          published\r
+
+                                          - tags: list of tags classifying the
+                                          article content\r
+
+                                          - domain: Name of the best fitting
+                                          subject matter domain of the article\r
+
+                                          - relevance: Relevance score to
+                                          'domain' (0-100) of the article \r
+
+                                          \r
+
+                                          # Success Criteria\r
+
+                                          - The provided article content is the
+                                          sole authoritative source of truth for
+                                          the analysis. Except for estimating
+                                          the expiration date (\"expiration\"),
+                                          no external knowledge or training data
+                                          may be used to supplement the
+                                          content.\r
+
+                                          - Every domain from Subject Matter
+                                          Domains has been fully addressed in
+                                          'domain_relevance'.\r
+
+                                          \r
+
+                                          # Contingencies\r
+
+                                          Content is missing/empty/too short to
+                                          judge -> score conservatively and
+                                          state that limitation\r
+
+                                          \r
+
+                                          # Deliverables\r
+
+                                          Exactly one JSON Object per the
+                                          provided schema and semantics defined
+                                          below.\r
+
+                                          \r
+
+                                          ## 'highlights'\r
+
+                                          1-2 sentences, 1 line each. Each
+                                          highlight must:\r
+
+                                          - Quote or reference a **specific,
+                                          non‑obvious, decision‑relevant claim**
+                                          from the article. \r
+
+                                          - Capture **insight, tension,
+                                          contradiction, or impact**, not
+                                          surface‑level restatements. \r
+
+                                          - Be **semantically dense**: each
+                                          highlight should express _why the
+                                          referenced claim matters_.\r
+
+                                          - Avoid trivialities, summaries, or
+                                          generic statements.\r
+
+                                          - Avoid paraphrasing the article’s
+                                          introduction, section headers, or
+                                          obvious facts.\r
+
+                                          \r
+
+                                          ## 'reading_values'\r
+
+                                          Exactly 5 axis objects (one for each
+                                          'axis' discriminator) describing
+                                          article value, each per semantics
+                                          defined below:\r
+
+                                          - 'axis':\r
+
+                                          \  | Discriminator| Meaning|\r
+
+                                          \  | --- | --- |\r
+
+                                          \  | 'actionability' | Indicates how
+                                          directly the article enables a
+                                          practitioner to do something
+                                          (implement, fix, optimize, deploy,
+                                          replicate). Useful for engineering
+                                          teams, RAG pipelines prioritizing
+                                          “how‑to” content, operational
+                                          knowledge bases |\r
+
+                                          \  | 'novelty' | Indicates how new,
+                                          original, or forward‑moving the
+                                          content is relative to the domain’s
+                                          current state. Useful for research
+                                          prioritization, innovation scouting,
+                                          competitive intelligence |\r
+
+                                          \  | 'impact' | Indicates the
+                                          potential of the article’s ideas to
+                                          influence practice, research, or
+                                          outcomes in the field. Useful for
+                                          strategic planning, prioritizing
+                                          reading lists, identifying high‑value
+                                          content |\r
+
+                                          \  | 'rigor' | Indicates how
+                                          well‑supported the claims are.
+                                          Separates speculative blog posts from
+                                          reproducible research |\r
+
+                                          \  | 'depth' | Indicates how deep the
+                                          article goes into the subject matter
+                                          details (e.g. mechanisms, math,
+                                          architecture, implementation, …).
+                                          Useful for filtering between
+                                          high-level summaries and deep dives
+                                          |\r
+
+                                          - 'value': Axis discriminator specific
+                                          score:\r
+
+                                          \  - 'actionability':\r
+
+                                          \    | Score | Meaning |\r
+
+                                          \    | ----- | ------- |\r
+
+                                          \    | 0 |  Not actionable: Pure
+                                          theory, commentary, opinion, or
+                                          high‑level overview |\r
+
+                                          \    | 1 | Low: Some conceptual
+                                          guidance, but no steps, code, or
+                                          reproducible detail |\r
+
+                                          \    | 2 |  Medium: Provides partial
+                                          procedures, examples, or pseudo‑code
+                                          |\r
+
+                                          \    | 3 | High: Contains explicit
+                                          steps, code, configs, reproducible
+                                          experiments, or ready‑to‑apply
+                                          patterns |\r
+
+                                          \  - 'novelty':\r
+
+                                          \    | Score | Meaning |\r
+
+                                          \    | ----- | ------- |\r
+
+                                          \    | 0 | Established knowledge:
+                                          Well‑known, standard, widely
+                                          documented |\r
+
+                                          \    | 1 | Incremental: Minor
+                                          improvements or small variations on
+                                          known ideas |\r
+
+                                          \    | 2 | Emerging: New techniques,
+                                          early research, or under‑documented
+                                          methods |\r
+
+                                          \    | 3 | Cutting‑edge:
+                                          Breakthroughs, paradigm shifts, or
+                                          first‑of‑its‑kind results |\r
+
+                                          \  - 'impact':\r
+
+                                          \    | Score | Meaning |\r
+
+                                          \    | ----- | ------- |\r
+
+                                          \    | 0 |  Minimal: Niche or
+                                          low‑consequence insights |\r
+
+                                          \    | 1 | Local: Useful for a small
+                                          subset of practitioners |\r
+
+                                          \    | 2 | Field‑level: Likely to
+                                          influence common practices or tools
+                                          |\r
+
+                                          \    | 3 | Transformative: Could
+                                          reshape the field or create new
+                                          standards |\r
+
+                                          \  - 'rigor':\r
+
+                                          \    | Score | Meaning |\r
+
+                                          \    | ----- | ------- |\r
+
+                                          \    | 0 | Unsupported claims |\r
+
+                                          \    | 1 | Anecdotal evidence |\r
+
+                                          \    | 2 | Some empirical support |\r
+
+                                          \    | 3 | Strong, reproducible
+                                          evidence (data, benchmarks, citations)
+                                          |\r
+
+                                          \  - 'depth':\r
+
+                                          \    | Score | Meaning |\r
+
+                                          \    | ----- | ------- |\r
+
+                                          \    | 0 | Surface-level overview |\r
+
+                                          \    | 1 | Moderate detail |\r
+
+                                          \    | 2 | Deep technical content |\r
+
+                                          \    | 3 | Highly technical,
+                                          expert-level depth |\r
+
+                                          - 'rationale': A brief citation of
+                                          specific elements from the content
+                                          that justify the score (1-2
+                                          sentences)\r
+
+                                          \r
+
+                                          ## 'analyst_notes'\r
+
+                                          Limitations, uncertainties, or
+                                          meta‑observations about the article
+                                          (1–2 sentences each). Each note must
+                                          specify whether it is explicit or
+                                          inferred\".\r
+
+                                          \r
+
+                                          ## 'expires'\r
+
+                                          The ISO date when the article’s
+                                          information is expected to become
+                                          factually outdated, superseded, or no
+                                          longer useful based on the article's
+                                          frontmatter property 'published' and
+                                          domain‑specific update cycles (e.g.,
+                                          tech releases, policy changes,
+                                          scientific revisions, event
+                                          timelines). Add the rationale for the
+                                          expiration date as a separate item to
+                                          'analyst_notes'.\r
+
+                                          `"
+                                      temperature:
+                                        type: static
+                                        value: 0
+                                      user_attachments:
+                                        type: static
+                                        value: []
+                                      user_message:
+                                        type: javascript
+                                        expr: "`---\r
+
+                                          type: rssitem\r
+
+                                          title: \"${results.mditem.title}\"\r
+
+                                          published:
+                                          \"${results.mditem.published}\"\r
+
+                                          tags: [
+                                          ${results.mditem.tags.join(',')}]\r
+
+                                          domain: \"${results.best.domain}\"\r
+
+                                          relevance: ${results.best.relevance}\r
+
+                                          ---\r
+
+                                          \r
+
+                                          ${results.mditem.content}`"
+                                    tools: []
+                                - id: k
+                                  summary: Assemble Note
                                   value:
-                                    kind: openrouter
-                                    model: z-ai/glm-5.3-flash
-                                    resource: $res:u/peterernst/openrouter_api_key
-                                streaming:
-                                  type: static
-                                  value: false
-                                system_prompt:
-                                  type: javascript
-                                  expr: "`# Primary Operation\r
-
-                                    Evaluate reading value of an article, and
-                                    create a structured JSON report.\r
-
-                                    \r
-
-                                    # Context\r
-
-                                    - Your analysis will guide professionals and
-                                    academics in prioritizing articles\r
-
-                                    - Style: Approachable, organic, and
-                                    optimized for the target audience.\r
-
-                                    \r
-
-                                    # Input\r
-
-                                    A user message block containing an article
-                                    (Markdown) with frontmatter metadata:\r
-
-                                    - type: rssitem\r
-
-                                    - title: article title\r
-
-                                    - published: date when the article was
-                                    published\r
-
-                                    - tags: list of tags classifying the article
-                                    content\r
-
-                                    - domain: Name of the best fitting subject
-                                    matter domain of the article\r
-
-                                    - relevance: Relevance score to 'domain'
-                                    (0-100) of the article \r
-
-                                    \r
-
-                                    # Success Criteria\r
-
-                                    - The provided article content is the sole
-                                    authoritative source of truth for the
-                                    analysis. Except for estimating the
-                                    expiration date (\"expiration\"), no
-                                    external knowledge or training data may be
-                                    used to supplement the content.\r
-
-                                    - Every domain from Subject Matter Domains
-                                    has been fully addressed in
-                                    'domain_relevance'.\r
-
-                                    \r
-
-                                    # Contingencies\r
-
-                                    Content is missing/empty/too short to judge
-                                    -> score conservatively and state that
-                                    limitation\r
-
-                                    \r
-
-                                    # Deliverables\r
-
-                                    Exactly one JSON Object per the provided
-                                    schema and semantics defined below.\r
-
-                                    \r
-
-                                    ## 'highlights'\r
-
-                                    1-2 sentences, 1 line each. Each highlight
-                                    must:\r
-
-                                    - Quote or reference a **specific,
-                                    non‑obvious, decision‑relevant claim** from
-                                    the article. \r
-
-                                    - Capture **insight, tension, contradiction,
-                                    or impact**, not surface‑level restatements.
-                                    \r
-
-                                    - Be **semantically dense**: each highlight
-                                    should express _why the referenced claim
-                                    matters_.\r
-
-                                    - Avoid trivialities, summaries, or generic
-                                    statements.\r
-
-                                    - Avoid paraphrasing the article’s
-                                    introduction, section headers, or obvious
-                                    facts.\r
-
-                                    \r
-
-                                    ## 'reading_values'\r
-
-                                    Exactly 5 axis objects (one for each 'axis'
-                                    discriminator) describing article value,
-                                    each per semantics defined below:\r
-
-                                    - 'axis':\r
-
-                                    \  | Discriminator| Meaning|\r
-
-                                    \  | --- | --- |\r
-
-                                    \  | 'actionability' | Indicates how
-                                    directly the article enables a practitioner
-                                    to do something (implement, fix, optimize,
-                                    deploy, replicate). Useful for engineering
-                                    teams, RAG pipelines prioritizing “how‑to”
-                                    content, operational knowledge bases |\r
-
-                                    \  | 'novelty' | Indicates how new,
-                                    original, or forward‑moving the content is
-                                    relative to the domain’s current state.
-                                    Useful for research prioritization,
-                                    innovation scouting, competitive
-                                    intelligence |\r
-
-                                    \  | 'impact' | Indicates the potential of
-                                    the article’s ideas to influence practice,
-                                    research, or outcomes in the field. Useful
-                                    for strategic planning, prioritizing reading
-                                    lists, identifying high‑value content |\r
-
-                                    \  | 'rigor' | Indicates how well‑supported
-                                    the claims are. Separates speculative blog
-                                    posts from reproducible research |\r
-
-                                    \  | 'depth' | Indicates how deep the
-                                    article goes into the subject matter details
-                                    (e.g. mechanisms, math, architecture,
-                                    implementation, …). Useful for filtering
-                                    between high-level summaries and deep dives
-                                    |\r
-
-                                    - 'value': Axis discriminator specific
-                                    score:\r
-
-                                    \  - 'actionability':\r
-
-                                    \    | Score | Meaning |\r
-
-                                    \    | ----- | ------- |\r
-
-                                    \    | 0 |  Not actionable: Pure theory,
-                                    commentary, opinion, or high‑level overview
-                                    |\r
-
-                                    \    | 1 | Low: Some conceptual guidance,
-                                    but no steps, code, or reproducible detail
-                                    |\r
-
-                                    \    | 2 |  Medium: Provides partial
-                                    procedures, examples, or pseudo‑code |\r
-
-                                    \    | 3 | High: Contains explicit steps,
-                                    code, configs, reproducible experiments, or
-                                    ready‑to‑apply patterns |\r
-
-                                    \  - 'novelty':\r
-
-                                    \    | Score | Meaning |\r
-
-                                    \    | ----- | ------- |\r
-
-                                    \    | 0 | Established knowledge:
-                                    Well‑known, standard, widely documented |\r
-
-                                    \    | 1 | Incremental: Minor improvements
-                                    or small variations on known ideas |\r
-
-                                    \    | 2 | Emerging: New techniques, early
-                                    research, or under‑documented methods |\r
-
-                                    \    | 3 | Cutting‑edge: Breakthroughs,
-                                    paradigm shifts, or first‑of‑its‑kind
-                                    results |\r
-
-                                    \  - 'impact':\r
-
-                                    \    | Score | Meaning |\r
-
-                                    \    | ----- | ------- |\r
-
-                                    \    | 0 |  Minimal: Niche or
-                                    low‑consequence insights |\r
-
-                                    \    | 1 | Local: Useful for a small subset
-                                    of practitioners |\r
-
-                                    \    | 2 | Field‑level: Likely to influence
-                                    common practices or tools |\r
-
-                                    \    | 3 | Transformative: Could reshape the
-                                    field or create new standards |\r
-
-                                    \  - 'rigor':\r
-
-                                    \    | Score | Meaning |\r
-
-                                    \    | ----- | ------- |\r
-
-                                    \    | 0 | Unsupported claims |\r
-
-                                    \    | 1 | Anecdotal evidence |\r
-
-                                    \    | 2 | Some empirical support |\r
-
-                                    \    | 3 | Strong, reproducible evidence
-                                    (data, benchmarks, citations) |\r
-
-                                    \  - 'depth':\r
-
-                                    \    | Score | Meaning |\r
-
-                                    \    | ----- | ------- |\r
-
-                                    \    | 0 | Surface-level overview |\r
-
-                                    \    | 1 | Moderate detail |\r
-
-                                    \    | 2 | Deep technical content |\r
-
-                                    \    | 3 | Highly technical, expert-level
-                                    depth |\r
-
-                                    - 'rationale': A brief citation of specific
-                                    elements from the content that justify the
-                                    score (1-2 sentences)\r
-
-                                    \r
-
-                                    ## 'analyst_notes'\r
-
-                                    Limitations, uncertainties, or
-                                    meta‑observations about the article (1–2
-                                    sentences each). Each note must specify
-                                    whether it is explicit or inferred\".\r
-
-                                    \r
-
-                                    ## 'expires'\r
-
-                                    The ISO date when the article’s information
-                                    is expected to become factually outdated,
-                                    superseded, or no longer useful based on the
-                                    article's frontmatter property 'published'
-                                    and domain‑specific update cycles (e.g.,
-                                    tech releases, policy changes, scientific
-                                    revisions, event timelines). Add the
-                                    rationale for the expiration date as a
-                                    separate item to 'analyst_notes'.\r
-
-                                    `"
-                                temperature:
-                                  type: static
-                                  value: 0
-                                user_attachments:
-                                  type: static
-                                  value: []
-                                user_message:
-                                  type: javascript
-                                  expr: "`---\r
-
-                                    type: rssitem\r
-
-                                    title: \"${results.dehydrate.title}\"\r
-
-                                    published:
-                                    \"${results.dehydrate.published}\"\r
-
-                                    tags: [
-                                    ${results.dehydrate.tags.join(',')}]\r
-
-                                    domain: \"${results.best.domain}\"\r
-
-                                    relevance: ${results.best.relevance}\r
-
-                                    ---\r
-
-                                    \r
-
-                                    ${results.content}`"
-                              tools: []
-                          - id: k
-                            summary: Assemble Note
-                            value:
-                              type: script
-                              input_transforms:
-                                analysis:
-                                  type: javascript
-                                  expr: results.i.output
-                                domain:
-                                  type: javascript
-                                  expr: results.best
-                                feed:
-                                  type: javascript
-                                  expr: results.c
-                                item:
-                                  type: javascript
-                                  expr: results.dehydrate
-                                markdown:
-                                  type: javascript
-                                  expr: results.content
-                              is_trigger: false
-                              path: u/peterernst/rss_feeds_triage/assemble_note
+                                    type: script
+                                    input_transforms:
+                                      analysis:
+                                        type: javascript
+                                        expr: results.i.output
+                                      domain:
+                                        type: javascript
+                                        expr: results.best
+                                      feed:
+                                        type: javascript
+                                        expr: results.feed
+                                      item:
+                                        type: javascript
+                                        expr: results.mditem
+                                    is_trigger: false
+                                    path: u/peterernst/rss_feeds_triage/assemble_note
                           - id: g
                             summary: Item -> Inbox
                             value:
@@ -732,13 +787,13 @@ value:
                               input_transforms:
                                 content:
                                   type: javascript
-                                  expr: results.k.note
+                                  expr: results.ttr.note
                                 extension:
                                   type: static
                                   value: md
                                 filename:
                                   type: javascript
-                                  expr: results.k.filename
+                                  expr: results.ttr.filename
                                 vault:
                                   type: static
                                   value: WetHat Lab
@@ -746,11 +801,11 @@ value:
                               path: f/lib/save_to_Inbox
                         iterator:
                           type: javascript
-                          expr: results.c.item_handles
+                          expr: results.feed.item_handles
                         parallel: false
                         skip_failures: true
                         squash: true
-                  expr: results.c.item_handles.length > 0
+                  expr: results.feed.item_handles.length > 0
                   parallel: true
                   skip_failure: true
               default:

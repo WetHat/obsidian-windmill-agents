@@ -83,16 +83,10 @@ schema:
       type: object
       description: ''
       default: null
-      format: resource-i_item
-      originalType: string
-    markdown:
-      type: string
-      description: ''
-      default: null
+      format: resource-i_markdown_item
       originalType: string
   required:
     - feed
     - item
-    - markdown
     - domain
     - analysis

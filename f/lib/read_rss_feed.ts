@@ -394,17 +394,19 @@ const READER_OPTIONS: ParserOptions = {
     const content: any = entry_data["content:encoded"] || entry_data.content || entry_data["dc:content"];
     if (content) {
       entry_data.content = (typeof content === "string" ? content : content["#text"]) ?? entry_data.description as string;
-    } else {
-      entry_data.content = '- - -'
+    } else if (entry_data.description) {
+      entry_data.content = entry_data.description;
+      entry_data.description = "";
     }
-
     let title = entry_data.title as any;
+    title = title["#text"] ?? title;
+
     if (!title) {
       // a title is mandatory - synthesize one
       title = entry_data.published;
     }
     // remove linefeeds and extra spaces
-    entry_data.title = (title["#text"] ?? title).toString().replace(/[\s\r\n]+/g, " ");
+    entry_data.title = title.toString().replace(/[\s\r\n]+/g, " ");
 
     return entry_data;
   },

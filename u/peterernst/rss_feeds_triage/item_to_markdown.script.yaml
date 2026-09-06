@@ -1,7 +1,7 @@
-summary: Scrape item article
+summary: Item -> Markdown
 description: This script was edited in place of flow
   u/peterernst/rss_feeds_triage  by peterernst.
-lock: '!inline u/peterernst/rss_feeds_triage/scrape_item_article.script.lock'
+lock: '!inline u/peterernst/rss_feeds_triage/item_to_markdown.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -11,7 +11,10 @@ schema:
       type: object
       description: ''
       default: null
-      format: resource-i_item
-      originalType: string
+      format: resource-i_markdown_item
+      properties:
+        ttr:
+          type: number
+          description: ''
   required:
     - item

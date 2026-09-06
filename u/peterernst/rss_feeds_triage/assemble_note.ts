@@ -1,10 +1,9 @@
 // import * as wmill from "windmill-client"
-import { IItem, IRssAsset, IFlyweightFeed } from "/f/lib/read_rss_feed";
+import { IRssAsset, IFlyweightFeed } from "/f/lib/read_rss_feed";
 import { IDomain } from "/u/peterernst/rss_feeds_triage/select_best_domain";
+import { IMarkdownItem } from "/u/peterernst/rss_feeds_triage/item_to_markdown";
 
-const
-  illegalRe = /[\/\?<>\\:\*\,|"\[\]#]/g,
-  INDICATORS = ["⭕", "⭐", "⭐⭐", "⭐⭐⭐"];
+const INDICATORS = ["⭕", "⭐", "⭐⭐", "⭐⭐⭐"];
 
 interface IDomainRelevance {
   domain: string,
@@ -25,7 +24,7 @@ interface IArticleAnalysis {
   analyst_notes: string[]
 };
 
-export async function main(feed: IFlyweightFeed, item: IItem, markdown: string, domain: IDomain, analysis: IArticleAnalysis) {
+export async function main(feed: IFlyweightFeed, item: IMarkdownItem, domain: IDomain, analysis: IArticleAnalysis) {
   const [actionability, novelty, impact, rigor, depth] = analysis.reading_values.map((ax) => ax.value);
 
   let reading_value = 0.3 * (domain.relevance / 100 * 3) + 0.2 * actionability + 0.15 * impact + 0.15 * depth + 0.1 * novelty + 0.1 * rigor;
@@ -35,7 +34,6 @@ export async function main(feed: IFlyweightFeed, item: IItem, markdown: string, 
   reading_value = Math.round(Math.min(3, reading_value));
 
   const
-    filename = item.title.replace(illegalRe, "•").replace(new RegExp('\u00A0', 'g'), ' '), // and non-breaking spaces (thanks @Licat)
     image_embed = (item.media.length > 0 && item.media[0].type === 'image') ? `![image|float:right|200](${item.media[0].src}) ` : '',
     note = `---
 type: rssitem
@@ -50,7 +48,7 @@ expires: ${analysis.expires}
 domain: ${domain.domain}
 relevance: ${domain.relevance}
 reading_value: ${INDICATORS[reading_value]}
-reading_time: ${Math.round((markdown.match(/\p{L}{2,}\p{M}*|\p{N}+/gu)?.length ?? 0) / 150)}
+reading_time: ${item.ttr ?? 0}
 ---
 > [!tldr]
 > ${image_embed}${item.description}
@@ -73,7 +71,7 @@ ${analysis.analyst_notes.map(n => '- ' + n).join(`\n`)}
 
 # ${item.title}
 
-${markdown}
+${item.content}
 
 - - -
 
@@ -81,7 +79,7 @@ ${item.media.map((m: IRssAsset) => `- ![${m.type}|${m.width > 0 ? m.width : 64}]
 `;
 
   return {
-    filename: `${filename} - ${Date.now().toString(36)}`,
+    filename: `${item.title} - ${Date.now().toString(36)}`,
     note
   }
 }
