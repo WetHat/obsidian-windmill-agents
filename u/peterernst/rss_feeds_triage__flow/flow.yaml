@@ -175,7 +175,7 @@ value:
                                               type: number
                                               description: Relevance score of the subject matter domain
                                               default: 0
-                                              max: 1
+                                              max: 100
                                               min: 0
                                               nullable: false
                                               placeholder: 0...1
@@ -190,7 +190,7 @@ value:
                                   type: static
                                   value:
                                     kind: openrouter
-                                    model: ~deepseek/deepseek-v4-flash-latest
+                                    model: deepseek/deepseek-v4.1-flash
                                     reasoning_effort: xhigh
                                     resource: $res:u/peterernst/openrouter_api_key
                                 streaming:
@@ -284,7 +284,7 @@ value:
                                     `"
                                 temperature:
                                   type: static
-                                  value: 0
+                                  value: null
                                 user_attachments:
                                   type: static
                                   value: []
@@ -443,7 +443,8 @@ value:
                                         type: static
                                         value:
                                           kind: openrouter
-                                          model: z-ai/glm-5.3-flash
+                                          model: google/gemini-3.8-flash
+                                          reasoning_effort: high
                                           resource: $res:u/peterernst/openrouter_api_key
                                       streaming:
                                         type: static

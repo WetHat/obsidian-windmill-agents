@@ -9,7 +9,7 @@ export async function main(item: IItem): Promise<IItem> {
     throw new Error(`Scraping web page '${item.link}' failed with status ${scraped.status}`)
   }
 
-  const article: IArticle = await extract_article(item.link, scraped.head, scraped.head);
+  const article: IArticle = await extract_article(item.link, scraped.head, scraped.body);
   if (!article.article) {
     throw new Error(`Article extraction from ${item.link} failed`)
   }
