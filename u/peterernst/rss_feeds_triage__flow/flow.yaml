@@ -442,10 +442,10 @@ value:
                                       provider:
                                         type: static
                                         value:
-                                          kind: openrouter
-                                          model: google/gemini-3.8-flash
+                                          kind: openai
+                                          model: gpt-5.6-luna
                                           reasoning_effort: high
-                                          resource: $res:u/peterernst/openrouter_api_key
+                                          resource: $res:u/peterernst/openai_api_key
                                       streaming:
                                         type: static
                                         value: false

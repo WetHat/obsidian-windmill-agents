@@ -68,7 +68,7 @@ const allowedTags: string[] = [
   "label",
   "abbr",
   "a",
-  "svg",
+  "svg"
 ];
 
 const allowedAttributes: Record<string, string[]> = {
@@ -90,7 +90,9 @@ const allowedAttributes: Record<string, string[]> = {
   svg: ["width", "height"],
   pre: ["class", "data-syntax-language", "data-lang", "language"],
   div: ["class", "data-syntax-language", "data-lang", "language"],
-  code: ["class", "data-syntax-language", "data-lang", "language"]
+  code: ["class", "data-syntax-language", "data-lang", "language"],
+  section: ["class"]
+
 };
 
 function scanElements(element: Element, visitor: TElementVisitor) {
@@ -99,6 +101,52 @@ function scanElements(element: Element, visitor: TElementVisitor) {
   for (let i = 0; i < element.childElementCount; i++) {
     scanElements(children[i], visitor);
   }
+}
+
+/**
+ * Replaces supported Uni custom elements with semantic HTML elements.
+ *
+ * The replacement preserves each element's attributes and moves its child nodes
+ * into the newly created element before replacing the original element in the
+ * document. Elements are processed using the following mappings:
+ *
+ * - `uni-article` → `article`
+ * - `uni-article-header` → `header`
+ * - `uni-article-paragraph` → `p`
+ * - `uni-article-image` → `figure`
+ * - `uni-article-list` → `ul`
+ * - `uni-article-list-item` → `li`
+ *
+ * @param body - Root element whose descendant Uni custom elements are replaced
+ *   in place.
+ */
+function replaceUniTags(body: HTMLElement) {
+  const UNI_MAP: Record<string, string> = {
+    "uni-article": "article",
+    "uni-article-header": "header",
+    "uni-article-paragraph": "p",
+    "uni-article-image": "figure",
+    "uni-article-list": "ul",
+    "uni-article-list-item": "li",
+  };
+
+  Object.entries(UNI_MAP).forEach(([from, to]) => {
+    body.querySelectorAll(from).forEach(oldEl => {
+      const newEl = body.ownerDocument.createElement(to);
+
+      // Copy attributes
+      for (const attr of oldEl.attributes) {
+        newEl.setAttribute(attr.name, attr.value);
+      }
+
+      // Move children
+      while (oldEl.firstChild) {
+        newEl.appendChild(oldEl.firstChild);
+      }
+
+      oldEl.replaceWith(newEl);
+    });
+  });
 }
 
 /**
@@ -250,6 +298,7 @@ const tm: Transformation = {
 
     cleanAttributes(body);
     console.log(`Attributes clean: body=${body.outerHTML.length}`)
+    replaceUniTags(body);
     cleanupFakeCode(body);
     detectCode(body);
     console.log(`preprocessed Body ${body.outerHTML.length}`);
@@ -512,7 +561,6 @@ export async function extract_article(source: string, head: string, body: string
 export async function extract_markdown_article(source: string, head: string, body: string): Promise<IArticle> {
 
   const article: IArticle = await extract_article(source, head, body);
-
   // replace HTML with Markdown content
   article.article = convert_to_markdown(`<html><head>${head}</head><body>${article.article ?? "-"}</body></html>`, source);
 

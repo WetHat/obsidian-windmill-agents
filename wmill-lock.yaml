@@ -1,7 +1,7 @@
 version: v2
 locks:
   f/lib/extract_article: dbcc0d1a61d01816181ae4850b0247aab62a28e478dc89d05e2a2f70e2bff708
-  f/lib/extract_markdown_article: e74cb01de6b1688be175252a09eff2256047910f7b845462e206a05361d7d7c7
+  f/lib/extract_markdown_article: 2ffe0b7e060c926685b6fbcad525a325075c79b8d70aa9de5bfdcbd4ec1473d7
   f/lib/html_to_markdown: 5aaff9fa3b4dda9062d05b6e0d549ff29ddd83f9ff1cdd392e0bc8d3b7bbfbd7
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
   f/lib/read_rss_feed: d80b283cf9e03a5a6a18c0be85e0c56ae4676136ab7be416e1ad9deee6507939
