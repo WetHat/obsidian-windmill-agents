@@ -1,7 +1,7 @@
 import * as wmill from "windmill-client"
 import { IFeedMeta, extract_rss_feed_from_xml } from "/f/lib/read_rss_feed";
 
-export async function main(feed_url: string) {
+export async function main(feed_url: string, short_content:boolean) {
 
   // 1. Obtein the fedd's xml 
   const resp = await fetch(feed_url, {
@@ -32,8 +32,8 @@ export async function main(feed_url: string) {
   const
     sql = wmill.datatable('rss'),
     row = await sql`
-INSERT INTO test_feeds (name, url, xml)
-VALUES (${feed.title}, ${feed_url}, ${xml})`.fetchOne();
+INSERT INTO test_feeds (name, url, xml, short_content)
+VALUES (${feed.title}, ${feed_url}, ${xml}, ${short_content})`.fetchOne();
 
   return {
     status: resp.status,

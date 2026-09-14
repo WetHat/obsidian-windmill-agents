@@ -87,7 +87,7 @@
 
     "uhyphen": ["uhyphen@0.2.0", "", {}, "sha512-qz3o9CHXmJJPGBdqzab7qAYuW8kQGKNEuoHFYrBwV6hWIMcpAmxDLXojcHfFr9US1Pe6zUswEIJIbLI610fuqA=="],
 
-    "windmill-client": ["windmill-client@1.811.0", "", {}, "sha512-rwCy10zF1s7rvEok5SN+YoHivh/Kz4mDw5OvLUVZs69OhspRf+DvrEgxo0HxgB93+PfobfQicWSnGd4gbt4IQQ=="],
+    "windmill-client": ["windmill-client@1.811.1", "", {}, "sha512-HrwGW2yBA/4sbnGaUT5VIf0wRuKAbpP2psnIMF8PIcjXFPynjdfajrUc/LB0RG/pntuHWIms1+Lys22n6OVU0g=="],
 
     "dom-serializer/domelementtype": ["domelementtype@3.0.0", "", {}, "sha512-umCQid3jKbDmVjx8jGaW7uUykm4DEUeyV21hPxNMo2nV955DhUThwqyOIDtreepP31hl84X7G5U9ZfsWvIB3Pg=="],
 

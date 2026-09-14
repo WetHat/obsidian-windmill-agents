@@ -17,7 +17,7 @@ export async function main(feed_id: number, item_indices: number[]): Promise<IFl
     feed_url: feed_data.url,
     id: feed_id,
     last_scan: null,
-    short_content: false
+    short_content: feed_data.short_content
   };
   return extract_rss_feed_from_xml(feed_data.xml, meta, item_indices);
 }

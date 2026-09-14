@@ -734,7 +734,7 @@ value:
                                           `"
                                       temperature:
                                         type: static
-                                        value: 0
+                                        value: null
                                       user_attachments:
                                         type: static
                                         value: []

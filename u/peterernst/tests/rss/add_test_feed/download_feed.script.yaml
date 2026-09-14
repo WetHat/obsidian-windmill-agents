@@ -12,5 +12,10 @@ schema:
       description: ''
       default: null
       originalType: string
+    short_content:
+      type: boolean
+      description: ''
+      default: null
   required:
     - feed_url
+    - short_content

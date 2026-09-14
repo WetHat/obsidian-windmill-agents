@@ -38,6 +38,10 @@ export interface IFeedMeta {
 interface IFeed extends FeedData {
   image?: IRssAsset;
   tags: string[]; // a list of tags describing the feed.
+  /**
+   * ISO date and time when the feed was published
+   */
+  published: string,
   scanned: string; // ISO date of item retrieval
 }
 
@@ -96,6 +100,8 @@ export interface IFlyweightFeed {
   image?: IRssAsset;
   /** Tags / categories describing the feed. */
   tags: string[];
+  /** Publish date of the feed */
+  published: string,
   /** Redis keys pointing to the feed's item objects. */
   item_handles: string[];
   /** ISO 8601 timestamp of the most recent item scan. */
@@ -143,8 +149,8 @@ function assembleMedia(elem: Record<string, any>): IRssAsset[] {
 
       let medium: IRssAsset = { src: mc["@_url"], type: mediumType, width: -1, height: -1 };
       const
-        width: string = elem["@_width"],
-        height: string = elem["@_height"];
+        width: string = mc["@_width"],
+        height: string = mc["@_height"];
       if (width && height) {
         medium["width"] = parseInt(width);
         medium["height"] = parseInt(height);
@@ -191,7 +197,7 @@ function assembleImage(elem: Record<string, unknown>): IRssAsset | null {
 
   const enc = elem.enclosure as any;
   if (enc?.["@_type"]?.includes("image")) {
-    return { src: enc["@_assembleurl"], type: 'image', width: -1, height: -1 };
+    return { src: enc["@_url"], type: 'image', width: -1, height: -1 };
   }
 
   let media = elem["media:content"] as any;
@@ -216,7 +222,6 @@ function assembleDescription(elem: Record<string, any>): string | null {
   if (typeof description === 'object') {
     description = description["#text"] ?? null;
   }
-
   return description ?? null;
 }
 
@@ -252,7 +257,7 @@ function assembleDescription(elem: Record<string, any>): string | null {
 function assembleTags(elem: Record<string, unknown>): string[] {
   if (elem.category === null) {
     elem.category = [];
-  } else if (elem.category === 'string') {
+  } else if (typeof elem.category === 'string') {
     elem.category = [elem.category];
   }
 
@@ -313,12 +318,14 @@ function assembleAuthors(elem: Record<string, unknown>): string[] {
       return [author as string];
     }
 
-    if (author.name === 'string') {
+    if (typeof author.name === 'string') {
       return [author.name];
     }
 
     if (Array.isArray(author)) {
-      return author.map((a: any) => a.name as string);
+      return author
+        .filter(a => typeof a?.name === 'string')
+        .map((a: any) => a.name as string);
     }
   }
   return [];
@@ -361,13 +368,22 @@ const READER_OPTIONS: ParserOptions = {
       feed_data.link = link;
     }
 
+    // determine the feed publish date
+    const published = feed_data.lastBuildDate
+      || feed_data.pubDate
+      || feed_data.updated
+      || feed_data["dc:date"]
+      || feed_data.modified;
+    if (typeof published === 'string') {
+      feed_data.published = new Date(published).toISOString();
+    }
     return feed_data;
   },
 
   getExtraEntryFields: (entry_data: Record<string, unknown>): Record<string, unknown> => {
 
     let { id, guid } = entry_data as any;
-    id = id || guid?.["#text"] || entry_data.link
+    entry_data.id = id || guid?.["#text"] || entry_data.link
 
     const link = assembleLink(entry_data);
     if (link) {
@@ -379,7 +395,11 @@ const READER_OPTIONS: ParserOptions = {
       entry_data.description = description;
     }
 
-    entry_data.published = entry_data.published || entry_data.pubDate || entry_data.updated || new Date().toISOString();
+    const published = entry_data.published || entry_data.pubDate || entry_data.updated || entry_data["dc:date"];
+    if (typeof published === 'string') {
+      entry_data.published = new Date(published).toISOString()
+    }
+
     entry_data.tags = assembleTags(entry_data);
     entry_data.authors = assembleAuthors(entry_data);
 
@@ -394,12 +414,9 @@ const READER_OPTIONS: ParserOptions = {
     const content: any = entry_data["content:encoded"] || entry_data.content || entry_data["dc:content"];
     if (content) {
       entry_data.content = (typeof content === "string" ? content : content["#text"]) ?? entry_data.description as string;
-    } else if (entry_data.description) {
-      entry_data.content = entry_data.description;
-      entry_data.description = "";
     }
     let title = entry_data.title as any;
-    title = title["#text"] ?? title;
+    title = title?.["#text"] ?? title;
 
     if (!title) {
       // a title is mandatory - synthesize one
@@ -409,7 +426,7 @@ const READER_OPTIONS: ParserOptions = {
     entry_data.title = title.toString().replace(/[\s\r\n]+/g, " ");
 
     return entry_data;
-  },
+  }
 };
 
 
@@ -427,27 +444,32 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
 
   // 2. Make items
   let feed_items = item_indices
+    .filter(i => i < entries.length)
     .map(i => {
-      const
-        item_data = entries[i] as Record<string, any>,
-        item: IItem = {
-          feed_id: meta.id,
-          feed_title: feed_data.title ?? meta.feed_name,
-          site_link: feed_data.link ?? '-',
-          id: item_data.id,
-          item_index: i,
-          title: item_data.title ?? "-",
-          description: item_data.description ?? "-",
-          link: item_data.link ?? "-",
-          authors: item_data.authors,
-          published: (item_data.published ? new Date(item_data.published) : new Date()).toISOString(),
-          tags: item_data.tags,
-          content: item_data.content ?? '.',
-          media: item_data.media
-        }
+      const item_data = entries[i] as Record<string, any>;
+
+      if (!meta.short_content && !item_data.content && item_data.description) {
+        // we need to produce content as feed is not marked short (no article download)
+        item_data.content = item_data.description;
+        item_data.description = "🚫"
+      }
+      const item: IItem = {
+        feed_id: meta.id,
+        feed_title: feed_data.title ?? meta.feed_name,
+        site_link: feed_data.link ?? '🚫',
+        id: item_data.id,
+        item_index: i,
+        title: item_data.title ?? "🚫",
+        description: item_data.description ?? "🚫",
+        link: item_data.link ?? "🚫",
+        authors: item_data.authors,
+        published: item_data.published ? item_data.published : feed_data.published,
+        tags: item_data.tags,
+        content: item_data.content ?? '🚫',
+        media: item_data.media
+      };
       return item;
     }) ?? [];
-
   // 3. keep new items only if scan date is availble
   if (meta.last_scan) {
     const cutoff = new Date(meta.last_scan);
@@ -476,6 +498,7 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
     title: feed_data.title || meta.feed_name,
     site: feed_data.link || "-",
     tags: feed_data.tags,
+    published: feed_data.published,
     scanned: new Date().toISOString(),
     short_content: meta.short_content,
     item_handles,
@@ -498,12 +521,13 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
  *
  *  @param item_limit
  *   Maximum number of normalized feed items to return.
+ *   >0 to pick items from the top of the feed; <0 to pick from the bottom
  *
  *  @param last_scan
  *   ISO timestamp of the previous scan. Included to filter new items.
  *
  *  @returns 
- *   A promise resolving to flyyweight feed representation.
+ *   A promise resolving to flyweight feed representation.
  */
 export async function main(id: number, feed_name: string, feed_url: string, item_limit: number, last_scan: string | null, short_content: boolean): Promise<IFlyweightFeed> {
   // 0.determine a base URL
@@ -513,7 +537,10 @@ export async function main(id: number, feed_name: string, feed_url: string, item
   // 1. Fetch + parse RSS feed
   const
     feed_data = await extract(feed_url, READER_OPTIONS) as IFeed,
-    range = Array.from({ length: item_limit }, (_, i) => i),
+    len = Math.min(Math.abs(item_limit), (feed_data.entries ?? []).length),
+    range = len > 0
+      ? Array.from({ length: len }, (_, i) => i)
+      : Array.from({ length: len }, (_, i) => len - i - 1),
     feed = await build_rss_feed(feed_data, {
       id,
       feed_url,

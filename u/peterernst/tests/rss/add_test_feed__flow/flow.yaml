@@ -10,6 +10,9 @@ value:
           feed_url:
             type: javascript
             expr: flow_input.url
+          short_content:
+            type: javascript
+            expr: flow_input.short_content
         is_trigger: false
         path: u/peterernst/tests/rss/add_test_feed/download_feed
   groups: []
@@ -17,7 +20,13 @@ value:
 schema:
   order:
     - url
+    - short_content
   properties:
+    short_content:
+      type: boolean
+      description: Feed Items have short content
+      default: false
+      title: Short Content
     url:
       type: string
       description: Url of the RSS/Atom feed
