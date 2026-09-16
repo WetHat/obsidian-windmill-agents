@@ -40,24 +40,8 @@ value:
             value:
               type: script
               input_transforms:
-                id:
-                  type: javascript
-                  expr: flow_input.iter.value.id
-                feed_name:
-                  type: javascript
-                  expr: flow_input.iter.value.name
-                feed_url:
-                  type: javascript
-                  expr: flow_input.iter.value.feed_url
-                item_limit:
-                  type: javascript
-                  expr: flow_input.iter.value.item_limit
-                last_scan:
-                  type: javascript
-                  expr: flow_input.iter.value.last_scan
-                short_content:
-                  type: javascript
-                  expr: flow_input.iter.value.short_content
+                feed_record:
+                  type: static
               is_trigger: false
               path: f/lib/read_rss_feed
           - id: d
