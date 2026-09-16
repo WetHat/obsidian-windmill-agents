@@ -7,36 +7,36 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
-    id:
-      type: number
+    feed_record:
+      type: object
       description: ''
       default: null
-    feed_name:
-      type: string
-      description: ''
-      default: null
-      originalType: string
-    feed_url:
-      type: string
-      description: ''
-      default: null
-      originalType: string
-    item_limit:
-      type: number
-      description: ''
-      default: null
-    last_scan:
-      type: string
-      description: ''
-      default: null
-      originalType: string
-    short_content:
-      type: boolean
-      description: ''
-      default: null
+      format: resource-i_feed_record
+      properties:
+        id:
+          type: number
+          description: ''
+        feed_name:
+          type: string
+          description: ''
+          originalType: string
+        feed_url:
+          type: string
+          description: ''
+          originalType: string
+        item_limit:
+          type: number
+          description: ''
+        last_item_id:
+          type: string
+          description: ''
+          originalType: string
+        last_scan:
+          type: string
+          description: ''
+          originalType: string
+        short_content:
+          type: boolean
+          description: ''
   required:
-    - id
-    - feed_name
-    - feed_url
-    - item_limit
-    - short_content
+    - feed_record

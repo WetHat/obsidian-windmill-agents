@@ -15,22 +15,22 @@
     },
   },
   "packages": {
-    "@xberg-io/html-to-markdown": ["@xberg-io/html-to-markdown@3.12.4", "", { "optionalDependencies": { "@xberg-io/html-to-markdown-darwin-arm64": "3.12.4", "@xberg-io/html-to-markdown-darwin-x64": "3.12.4", "@xberg-io/html-to-markdown-linux-arm64-gnu": "3.12.4", "@xberg-io/html-to-markdown-linux-arm64-musl": "3.12.4", "@xberg-io/html-to-markdown-linux-x64-gnu": "3.12.4", "@xberg-io/html-to-markdown-linux-x64-musl": "3.12.4", "@xberg-io/html-to-markdown-win32-arm64-msvc": "3.12.4", "@xberg-io/html-to-markdown-win32-x64-msvc": "3.12.4" } }, "sha512-GXX4IrO0Wr5g+zi55Szwf+KLjt/wCX+r5C3WQToCTbIOHZGR/OvOUxF84iSJJxTQJxzsRY6yQRKKCGn7FthLNA=="],
+    "@xberg-io/html-to-markdown": ["@xberg-io/html-to-markdown@3.13.0", "", { "optionalDependencies": { "@xberg-io/html-to-markdown-darwin-arm64": "3.13.0", "@xberg-io/html-to-markdown-darwin-x64": "3.13.0", "@xberg-io/html-to-markdown-linux-arm64-gnu": "3.13.0", "@xberg-io/html-to-markdown-linux-arm64-musl": "3.13.0", "@xberg-io/html-to-markdown-linux-x64-gnu": "3.13.0", "@xberg-io/html-to-markdown-linux-x64-musl": "3.13.0", "@xberg-io/html-to-markdown-win32-arm64-msvc": "3.13.0", "@xberg-io/html-to-markdown-win32-x64-msvc": "3.13.0" } }, "sha512-Gp+GWn9ZvITzKB+cjRAGVZLsixrMoOV4uxgkNYEDt3/4UYjG+xRFDVcwPrPm+nR1BhmRAmfFNWjanupo7x0fPQ=="],
 
-    "@xberg-io/html-to-markdown-darwin-arm64": ["@xberg-io/html-to-markdown-darwin-arm64@3.12.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-q5N9n8UfT+3WV08jVmWrB+FoWVk/72nrG/nHkE7SIQUo7PCyjJIMGNYfjAhetz95HAa8EOdfZP5Nf6aDruwK8g=="],
+    "@xberg-io/html-to-markdown-darwin-arm64": ["@xberg-io/html-to-markdown-darwin-arm64@3.13.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-mis2X5P7uYna8+jWTJKJ/oVXI0J+wc7Rkfd635KuXHzfEdXM8sUOL53l7ygYRdFAnvVXVweZ3UhPPSFSEgi0/A=="],
 
-    "@xberg-io/html-to-markdown-darwin-x64": ["@xberg-io/html-to-markdown-darwin-x64@3.12.4", "", { "os": "darwin", "cpu": "x64" }, "sha512-rKZmJCkMkDbai4zK6eNatw2VLYLZ9N4d+J/KXK2aX3KBp0XKDyIpWmyFB2PohMS1vgYlPkPoloJAkawpqNYaSQ=="],
+    "@xberg-io/html-to-markdown-darwin-x64": ["@xberg-io/html-to-markdown-darwin-x64@3.13.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-5wJPTvm0H3mbSMIqkxkao8Wq6Ofg3O5JHV7xMp+L60pECooifCdlef8WRkS50yK4YNcMLhP6I12gzPibZug35w=="],
 
-    "@xberg-io/html-to-markdown-linux-arm64-gnu": ["@xberg-io/html-to-markdown-linux-arm64-gnu@3.12.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-OeM7wEuHTOelRNwf1M/NAp6LywJDg6zZftmUcKXNcm+L+8epzVztmNZnbBeGmQS87FJgJyahJnaUblHyap/jOw=="],
+    "@xberg-io/html-to-markdown-linux-arm64-gnu": ["@xberg-io/html-to-markdown-linux-arm64-gnu@3.13.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-khD42vVxpzfZw4np3P/ghjSgQ9tcDEhT2MX1k6/o6zI9XAxEJBf/5dmEasy1uFbZhJ4JWYS6Fo0/D9Tsxe4evA=="],
 
-    "@xberg-io/html-to-markdown-linux-arm64-musl": ["@xberg-io/html-to-markdown-linux-arm64-musl@3.12.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-KCrq0G9WchA03HBH/jMdPrSPC/bpE1ennumkaK9794C9XEyEH43dBwpLZPwKypDIDHMNDohMMlANdWcEMYSYlQ=="],
+    "@xberg-io/html-to-markdown-linux-arm64-musl": ["@xberg-io/html-to-markdown-linux-arm64-musl@3.13.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-JNAMu+meQCeUCZiIoGYf10NECkwDXUMfhDR4j+3wCjcFZOoUOEwVFfcIjr8zpnhvzn37a+wMk/Jqob0h4aOsxQ=="],
 
-    "@xberg-io/html-to-markdown-linux-x64-gnu": ["@xberg-io/html-to-markdown-linux-x64-gnu@3.12.4", "", { "os": "linux", "cpu": "x64" }, "sha512-TrzKXNwbu8//Ur0KwvUBQ5yzdK5+cBpuZ4CRxAEL+AggCq2+J2ivSpXzUxGP+quiz1UILIxwi6kgbQdBCvB4lw=="],
+    "@xberg-io/html-to-markdown-linux-x64-gnu": ["@xberg-io/html-to-markdown-linux-x64-gnu@3.13.0", "", { "os": "linux", "cpu": "x64" }, "sha512-5rqE8LYWpen/FIjf60QeZRJf3Y6IUzVzt57qd17ReK3ZJwRfyIs06lAJ9U+h8rTD/rDZrsnQ8hObBZ8sPuUWhg=="],
 
-    "@xberg-io/html-to-markdown-linux-x64-musl": ["@xberg-io/html-to-markdown-linux-x64-musl@3.12.4", "", { "os": "linux", "cpu": "x64" }, "sha512-Xgs8JRO0JuVdi2l/0f8HgiU+DtHlziyNj4D3Dthwq5yWud5z1PwsqQRwAwjLEuFfnKrCHlAM1abYNrKzyOFZ2w=="],
+    "@xberg-io/html-to-markdown-linux-x64-musl": ["@xberg-io/html-to-markdown-linux-x64-musl@3.13.0", "", { "os": "linux", "cpu": "x64" }, "sha512-T76j8dt1zn0+Ufb5PnATPcUHh+wBo30KhoxmeojW+pxXYZebX+J92HPXzjNO+zQYNmRPEwd6hBxu2mLKqukhcg=="],
 
-    "@xberg-io/html-to-markdown-win32-arm64-msvc": ["@xberg-io/html-to-markdown-win32-arm64-msvc@3.12.4", "", { "os": "win32", "cpu": "arm64" }, "sha512-SWh3/rAlEAYdFNS5LAFv4XnIIdKGzyqMDlvD2+MwNez2kxhkFuaTPUBKDeIPKYGqe0815CgSWGcb/Sr0dWRLVg=="],
+    "@xberg-io/html-to-markdown-win32-arm64-msvc": ["@xberg-io/html-to-markdown-win32-arm64-msvc@3.13.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-8kN2QlfUVxSoI70wdqZAsM3u+gdzooQ1qItdjzLD0Obvg+RWwprCZenMV3DjUWnpTKnImrujKHGkrCwlqPGUNQ=="],
 
-    "@xberg-io/html-to-markdown-win32-x64-msvc": ["@xberg-io/html-to-markdown-win32-x64-msvc@3.12.4", "", { "os": "win32", "cpu": "x64" }, "sha512-dIgglct326VWRY/sEkTQX+69ct8b+5b5gXt8iyDnBYh5YdJ1mJTjNfmdlXG7rdy6NjGh2ZkI2utQsxfGt3ybuw=="],
+    "@xberg-io/html-to-markdown-win32-x64-msvc": ["@xberg-io/html-to-markdown-win32-x64-msvc@3.13.0", "", { "os": "win32", "cpu": "x64" }, "sha512-F8JLdq3uDrB7Iz1SLm53JeAjGm6snvzkEAGGUNsSuNpiqNmpGJA4yHgMXfALl9EEkEMGNWLB8zmX8s/W5JR8lQ=="],
   }
 }

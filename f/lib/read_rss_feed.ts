@@ -6,10 +6,10 @@ import { extract, extractFromXml, FeedData, ParserOptions } from "@extractus/fee
  * Metadata describing an RSS feed configuration.
  *
  * Represents the static properties required to read, limit, and process
- * a feed during ingestion. This structure is typically provided as input
+ * a feed during ingestion. This structure is provided as input
  * to the RSS scanning flow.
  */
-export interface IFeedMeta {
+export interface IFeedRecord {
   /**
    * Feed ID in the rss_feeds table.
    */
@@ -29,6 +29,14 @@ export interface IFeedMeta {
    * If null, the feed has never been scanned.
    */
   last_scan: string | null,
+  /**
+   * The unique id of the last item retrievmd in the last scan
+   */
+  last_item_id: string | null,
+  /**
+   * The maximum number of items to retrieve for this feed.
+   */
+  item_limit: number,
   /**
    * Indicates whether the feed items have short summaries only.
    */
@@ -106,6 +114,8 @@ export interface IFlyweightFeed {
   item_handles: string[];
   /** ISO 8601 timestamp of the most recent item scan. */
   scanned: string;
+  /** Unique Id of the newest retrieved feed item; `null if no item was retrieved` */
+  last_item_id: string | null,
   /** `true` if item content is short */
   short_content: boolean;
 }
@@ -430,7 +440,7 @@ const READER_OPTIONS: ParserOptions = {
 };
 
 
-export async function extract_rss_feed_from_xml(xml: string, meta: IFeedMeta, item_indices: number[]): Promise<IFlyweightFeed> {
+export async function extract_rss_feed_from_xml(xml: string, meta: IFeedRecord, item_indices: number[]): Promise<IFlyweightFeed> {
   const url = new URL(meta.feed_url);
   READER_OPTIONS.baseUrl = `${url.protocol}://${url.hostname}`;
 
@@ -438,7 +448,7 @@ export async function extract_rss_feed_from_xml(xml: string, meta: IFeedMeta, it
   return build_rss_feed(feed_data, meta, item_indices, 'xml');
 }
 
-async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: number[], handle_prefix: string): Promise<IFlyweightFeed> {
+async function build_rss_feed(feed_data: IFeed, meta: IFeedRecord, item_indices: number[], handle_prefix: string): Promise<IFlyweightFeed> {
   // 1. Normalize items
   const entries = Array.isArray(feed_data.entries) ? feed_data.entries : [];
 
@@ -470,7 +480,9 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
       };
       return item;
     }) ?? [];
-  // 3. keep new items only if scan date is availble
+
+  const last_item_id = feed_items.length > 0 ? feed_items[0].id : meta.last_item_id;
+  // 3. filter items only if scan date is available
   if (meta.last_scan) {
     const cutoff = new Date(meta.last_scan);
     feed_items = feed_items.filter(i => {
@@ -500,6 +512,7 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
     tags: feed_data.tags,
     published: feed_data.published,
     scanned: new Date().toISOString(),
+    last_item_id,
     short_content: meta.short_content,
     item_handles,
   }
@@ -529,31 +542,27 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedMeta, item_indices: n
  *  @returns 
  *   A promise resolving to flyweight feed representation.
  */
-export async function main(id: number, feed_name: string, feed_url: string, item_limit: number, last_scan: string | null, short_content: boolean): Promise<IFlyweightFeed> {
+export async function main(feed_record: IFeedRecord): Promise<IFlyweightFeed> {
   // 0.determine a base URL
-  const url = new URL(feed_url);
+  const url = new URL(feed_record.feed_url);
   READER_OPTIONS.baseUrl = `${url.protocol}://${url.hostname}`;
 
   // 1. Fetch + parse RSS feed
   const
-    feed_data = await extract(feed_url, READER_OPTIONS) as IFeed,
-    len = Math.min(Math.abs(item_limit), (feed_data.entries ?? []).length),
+    feed_data = await extract(feed_record.feed_url, READER_OPTIONS) as IFeed,
+    len = Math.min(Math.abs(feed_record.item_limit), (feed_data.entries ?? []).length),
     range = len > 0
       ? Array.from({ length: len }, (_, i) => i)
       : Array.from({ length: len }, (_, i) => len - i - 1),
-    feed = await build_rss_feed(feed_data, {
-      id,
-      feed_url,
-      feed_name,
-      last_scan,
-      short_content
-    }, range, 'web');
+    feed = await build_rss_feed(feed_data, feed_record, range, 'web');
 
   // 2. Update feed timestamp
-  const sql = wmill.datatable('rss');
-  await sql`
-  UPDATE rss_feeds
-    SET last_scan = CAST(${feed.scanned} AS timestamptz)
-    WHERE id = ${id}`.execute();
+  const
+    last_item_id = feed.last_item_id ?? feed_record.last_item_id,
+    sql = wmill.datatable('rss');
+  await sql`UPDATE rss_feeds
+    SET last_scan    = CAST(${feed.scanned} AS timestamptz),
+        last_item_id = ${last_item_id}
+    WHERE id = ${feed.id}`.execute();
   return feed;
 }
