@@ -25,7 +25,7 @@ export interface IFeedRecord {
    */
   feed_url: string,
   /**
-   * ISO timestamp of the last successful scan.
+   * ISO timestamp of the feed's publish date when items were last scanned.
    * If null, the feed has never been scanned.
    */
   last_scan: string | null,
@@ -112,7 +112,7 @@ export interface IFlyweightFeed {
   published: string,
   /** Redis keys pointing to the feed's item objects. */
   item_handles: string[];
-  /** ISO 8601 timestamp of the most recent item scan. */
+  /** ISO 8601 timestamp of the feed's publish date when items were last scanned. */
   scanned: string;
   /** Unique Id of the newest retrieved feed item; `null if no item was retrieved` */
   last_item_id: string | null,
@@ -440,15 +440,78 @@ const READER_OPTIONS: ParserOptions = {
 };
 
 
-export async function extract_rss_feed_from_xml(xml: string, meta: IFeedRecord, item_indices: number[]): Promise<IFlyweightFeed> {
-  const url = new URL(meta.feed_url);
+/**
+ * Scans a feed from XML that is already in hand, instead of fetching it.
+ *
+ * Parses `xml` through the same `READER_OPTIONS` pipeline as `main` — so title,
+ * link, image, tags, authors, media and publish dates are normalized the same
+ * way — and hands the result to `build_rss_feed` together with the entry
+ * positions the caller asks for.
+ *
+ * Where it deliberately differs from `main`:
+ *
+ * - Nothing is fetched. `xml` *is* the feed body; `rec.feed_url` is read only to
+ *   derive the base URL used to resolve relative links inside entries.
+ * - The entries to keep are given directly rather than derived from
+ *   `rec.item_limit`, which is therefore ignored here. There is no cap and no
+ *   direction: the positions are used as given, in the order given, which makes
+ *   this the entry point when the caller wants to choose the entries itself.
+ * - Items are stored under the `xml_` prefix (`xml_<feed_id>_<item_index>`)
+ *   instead of `web_`, so a scan read from XML never collides with one `main`
+ *   fetched for the same feed.
+ * - The `rss_feeds` row is left untouched: this function does not advance
+ *   `last_scan` or `last_item_id`. Recording the scan is the caller's job — see
+ *   `@remarks`.
+ *
+ * @param xml - The feed document as a string. Any XML the parser accepts is
+ *   fine: the caller may have read it from storage, received it in a webhook,
+ *   or fetched it itself.
+ *
+ * @param rec - The feed the entries belong to. Its `id` numbers the stored
+ *   items, and `feed_name`, `last_scan`, `last_item_id` and `short_content` are
+ *   used exactly as in `main` — including the `short_content` trick where a
+ *   summary is promoted to the item content. `feed_url` is required (it is
+ *   parsed as a URL) but never requested, and `item_limit` is ignored.
+ *
+ * @param item_indices - Zero-based positions of the entries to keep, in the
+ *   order they should come out. Positions at or past the end of the feed are
+ *   dropped silently; negative ones are not valid and will throw when the
+ *   corresponding entry is read.
+ *
+ * @returns A promise resolving to the flyweight feed, shaped as in `main`:
+ *   feed-level metadata, the `scanned` timestamp, the `last_item_id` newest
+ *   selected item, and the `item_handles` of the stored items — here under the
+ *   `xml_` prefix. Item bodies stay in Redis and are not returned.
+ *
+ * @throws If `xml` is not parsable as a feed, or if the Redis writes fail.
+ *   There is no fetch-failure path, since nothing is fetched.
+ *
+ * @remarks
+ * - Persistence is not handled here. Unlike `main`, which updates the
+ *   `rss_feeds` row as its last step, this function only returns the flyweight
+ *   feed; the caller must store `published` / `last_item_id` itself if it wants
+ *   the next scan to know where this one stopped.
+ * - `rec.last_scan` still filters, because that happens inside
+ *   `build_rss_feed`: entries published before it are dropped, so asking for
+ *   positions that are all older than the previous scan yields no items even
+ *   though the XML contained them.
+ *
+ * @example
+ * // the caller owns the feed body and the entry selection
+ * const feed = await extract_rss_feed_from_xml(xml, rec, [0, 1, 2]);
+ * console.log(feed.item_handles); // e.g. ["xml_1_0", "xml_1_1", "xml_1_2"]
+ *
+ * @see `main` for the variant that fetches the feed and records the scan.
+ */
+export async function extract_rss_feed_from_xml(xml: string, rec: IFeedRecord, item_indices: number[]): Promise<IFlyweightFeed> {
+  const url = new URL(rec.feed_url);
   READER_OPTIONS.baseUrl = `${url.protocol}://${url.hostname}`;
 
   const feed_data = extractFromXml(xml, READER_OPTIONS) as IFeed;
-  return build_rss_feed(feed_data, meta, item_indices, 'xml');
+  return build_rss_feed(feed_data, rec, item_indices, 'xml');
 }
 
-async function build_rss_feed(feed_data: IFeed, meta: IFeedRecord, item_indices: number[], handle_prefix: string): Promise<IFlyweightFeed> {
+async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: number[], handle_prefix: string): Promise<IFlyweightFeed> {
   // 1. Normalize items
   const entries = Array.isArray(feed_data.entries) ? feed_data.entries : [];
 
@@ -458,14 +521,14 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedRecord, item_indices:
     .map(i => {
       const item_data = entries[i] as Record<string, any>;
 
-      if (!meta.short_content && !item_data.content && item_data.description) {
+      if (!rec.short_content && !item_data.content && item_data.description) {
         // we need to produce content as feed is not marked short (no article download)
         item_data.content = item_data.description;
         item_data.description = "🚫"
       }
       const item: IItem = {
-        feed_id: meta.id,
-        feed_title: feed_data.title ?? meta.feed_name,
+        feed_id: rec.id,
+        feed_title: feed_data.title ?? rec.feed_name,
         site_link: feed_data.link ?? '🚫',
         id: item_data.id,
         item_index: i,
@@ -481,10 +544,11 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedRecord, item_indices:
       return item;
     }) ?? [];
 
-  const last_item_id = feed_items.length > 0 ? feed_items[0].id : meta.last_item_id;
+  const last_item_id = feed_items.length > 0 ? feed_items[0].id : rec.last_item_id;
+
   // 3. filter items only if scan date is available
-  if (meta.last_scan) {
-    const cutoff = new Date(meta.last_scan);
+  if (rec.last_scan) {
+    const cutoff = new Date(rec.last_scan);
     feed_items = feed_items.filter(i => {
       const pubdate = new Date(i.published);
       return pubdate >= cutoff;
@@ -506,14 +570,14 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedRecord, item_indices:
 
   // 5. build the flyweight return object
   const feed: IFlyweightFeed = {
-    id: meta.id, // rss_feeds record id
-    title: feed_data.title || meta.feed_name,
+    id: rec.id, // rss_feeds record id
+    title: feed_data.title || rec.feed_name,
     site: feed_data.link || "-",
     tags: feed_data.tags,
     published: feed_data.published,
     scanned: new Date().toISOString(),
     last_item_id,
-    short_content: meta.short_content,
+    short_content: rec.short_content,
     item_handles,
   }
 
@@ -522,25 +586,59 @@ async function build_rss_feed(feed_data: IFeed, meta: IFeedRecord, item_indices:
 }
 
 /**
- * Ingests an RSS/Atom feed, normalizes its entries, and returns a list of
- * str ctured `IItem` objects suitable for downstream processing in Windmill.
+ * Scans one RSS/Atom feed and returns a flyweight description of the scan.
  *
- *  @param id
- *   Database identifier of the RSS feed from the `rss_feeds` table.
+ * Fetches `feed_record.feed_url`, parses it through the shared
+ * `READER_OPTIONS` pipeline (which normalizes title, link, image, tags,
+ * authors, media and publish dates), then keeps `|item_limit|` entries of the
+ * feed, dropping any entry published before `feed_record.last_scan`.
  *
- *  @param feed_url
- *   URL of the RSS/Atom feed to fetch. Used both for retrieval and as the
- *   `baseUrl` for resolving relative links inside feed entries.
+ * Each kept entry is stored as a JSON document in Redis under the handle
+ * `web_<feed_id>_<item_index>`; only those handles are returned, not the item
+ * bodies. As a side effect, the matching `rss_feeds` datatable row is updated
+ * with `last_scan` (set to the feed's publish date) and `last_item_id`, so a
+ * later scan knows where it left off.
  *
- *  @param item_limit
- *   Maximum number of normalized feed items to return.
- *   >0 to pick items from the top of the feed; <0 to pick from the bottom
+ * @param feed_record - The feed to scan, as read from the `rss_feeds` table:
+ *   its `id`, `feed_name`, `feed_url`, and `item_limit` — a backstop on how many
+ *   entries a single scan hands over, there to hold down model costs on
+ *   high-frequency feeds. Its absolute value is capped by the number of entries
+ *   the feed actually has, and its sign picks the reading direction: a positive
+ *   value walks the parsed entries top-down, a zero or negative value walks the
+ *   selected run of indices backwards (`len-1 … 0`), which is how feeds that
+ *   append new items at the bottom come out newest item first. The record also
+ *   carries the previous `last_scan` ISO timestamp (`null` on a first scan),
+ *   `last_item_id`, and `short_content`, which marks feeds that carry summaries
+ *   only — for those the summary is used as the item content.
  *
- *  @param last_scan
- *   ISO timestamp of the previous scan. Included to filter new items.
+ * @returns A promise resolving to the flyweight feed: feed-level metadata, the
+ *   `scanned` timestamp, the Redis `item_handles` of the stored items, and the
+ *   `last_item_id` newest retrieved item.
  *
- *  @returns 
- *   A promise resolving to flyweight feed representation.
+ * @throws If the feed cannot be fetched or parsed, or if the Redis or
+ *   `rss_feeds` writes fail.
+ *
+ * @remarks
+ * - `item_limit` bounds a single scan only — it is a cost backstop on
+ *   high-frequency feeds, not a cursor. Entries past it are left unprocessed on
+ *   purpose, and since this run advances the stored scan date no later scan
+ *   goes back for them. Losing those items is the intended trade-off.
+ * - The feed URL is also used to derive `READER_OPTIONS.baseUrl`, so relative
+ *   links inside entries resolve against the feed's own site.
+ *
+ * @example
+ * const feed = await main({
+ *   id: 1,
+ *   feed_name: "Ars Technica – AI",
+ *   feed_url: "https://feeds.arstechnica.com/arstechnica/technology-lab",
+ *   last_scan: null,
+ *   last_item_id: null,
+ *   item_limit: 10,
+ *   short_content: false,
+ * });
+ * console.log(feed.item_handles); // e.g. ["web_1_0", "web_1_1", ...]
+ *
+ * @see `extract_rss_feed_from_xml` to scan from already-fetched feed XML.
  */
 export async function main(feed_record: IFeedRecord): Promise<IFlyweightFeed> {
   // 0.determine a base URL
@@ -551,7 +649,19 @@ export async function main(feed_record: IFeedRecord): Promise<IFlyweightFeed> {
   const
     feed_data = await extract(feed_record.feed_url, READER_OPTIONS) as IFeed,
     len = Math.min(Math.abs(feed_record.item_limit), (feed_data.entries ?? []).length),
-    range = len > 0
+    // Most feeds list the newest item first, so index 0 is
+    // the newest one and a positive item_limit walks the parsed entries
+    // top-down. Some feeds instead append new items at the bottom, leaving the
+    // newest item at the end of the array; a zero or negative item_limit walks
+    // the selected run of indices backwards, so the items come out newest
+    // first within that run for these bottom-appending feeds.
+    //
+    // item_limit is a backstop on how much a single scan hands over, there to
+    // hold down model costs on high-frequency feeds — it is not a cursor.
+    // Entries beyond it go unprocessed on purpose: this run advances the stored
+    // scan date, so no later scan goes back for them. Dropping them is a design
+    // decision, not an oversight.
+    range = feed_record.item_limit > 0
       ? Array.from({ length: len }, (_, i) => i)
       : Array.from({ length: len }, (_, i) => len - i - 1),
     feed = await build_rss_feed(feed_data, feed_record, range, 'web');
@@ -561,7 +671,7 @@ export async function main(feed_record: IFeedRecord): Promise<IFlyweightFeed> {
     last_item_id = feed.last_item_id ?? feed_record.last_item_id,
     sql = wmill.datatable('rss');
   await sql`UPDATE rss_feeds
-    SET last_scan    = CAST(${feed.scanned} AS timestamptz),
+    SET last_scan    = CAST(${feed.published} AS timestamptz),
         last_item_id = ${last_item_id}
     WHERE id = ${feed.id}`.execute();
   return feed;
