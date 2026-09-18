@@ -1,5 +1,5 @@
 # Windmill CLI Agent Instructions
-<!-- wmill-prompts-hash: 6a491589657e -->
+<!-- wmill-prompts-hash: b6274db7fad8 -->
 
 > Managed by `wmill`. This file is regenerated on `wmill init` and
 > `wmill refresh prompts` — edit AGENTS.md (user-owned) for project-specific
