@@ -4,7 +4,7 @@ locks:
   f/lib/extract_markdown_article: 2ffe0b7e060c926685b6fbcad525a325075c79b8d70aa9de5bfdcbd4ec1473d7
   f/lib/html_to_markdown: 5aaff9fa3b4dda9062d05b6e0d549ff29ddd83f9ff1cdd392e0bc8d3b7bbfbd7
   f/lib/load_vault_file: 544dcb048d08163a7f0c1f0c5e6ccf163016e00085de388b2065786813ea36b6
-  f/lib/read_rss_feed: 19f55a27d9700cc5fa401e3d8816c047ab087ef9d24a8da06b0c62f217e543df
+  f/lib/read_rss_feed: e712418042526e7625ee43871139262e0df11447461fa1fb1b09972f69902a32
   f/lib/rss_types: b923add90298b757b2d9ce16b2a8d34760764d7ff1b742dadeeba0bae84bfd73
   f/lib/save_to_Inbox: 3a3f1c5f1775fcca1be77441d886157c8713db3fa23936446b3264d4cc8bf20e
   f/lib/scrape_web_content_browserless: c20e66a4ad78eb21becf29ce7161ead4e47e1d3b74f038ae0a3899c04e7fdfe2
