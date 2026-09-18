@@ -7,11 +7,11 @@
 
 ## What Is Here
 
-The main workflow is `u/peterernst/rss_feeds_triage`. It reads feed definitions from the Windmill `rss` datatable, caches normalized items in Redis, asks an OpenRouter-backed AI agent to analyze each new item, and writes the resulting Markdown note to the `WetHat Lab` vault Inbox.
+The main workflow is `u/peterernst/rss_feeds_triage`. It reads active feed definitions from the Windmill `rss` datatable, parses and normalizes items, caches them in Redis, runs two-stage AI analysis (Domain Relevance via OpenRouter DeepSeek V4.1 Flash, followed by Reading Value analysis via OpenAI GPT-5.6 Luna), and writes the resulting Markdown note into the `WetHat Lab` vault Inbox. Short-content feeds have their full articles scraped via Browserless prior to analysis, and short items below reading time thresholds are saved as plain notes without invoking the reading value model.
 
-A second production flow, `u/peterernst/scrape_markdown_article`, scrapes a single web page via a self-hosted Browserless service and writes the extracted Markdown article into the vault Inbox.
+A second production flow, `u/peterernst/scrape_markdown_article`, scrapes a single web page via a self-hosted Browserless service, extracts clean Markdown, and cleans up the Redis cache. The repository also includes note assembly and vault saving scripts for inbox integration.
 
-The repository also contains reusable vault, Markdown, RSS, Redis, and Browserless scripts, plus regression-test flows for RSS parsing and article scraping. The `scrape_web_article` flow directories are placeholders for a planned orchestration flow; the working scrape pipeline is `scrape_markdown_article`.
+The repository also contains reusable vault, Markdown, RSS, Redis, and Browserless scripts, Docker service definitions (Windmill, Redis Stack, Browserless), plus regression-test flows for RSS parsing and article scraping. The `scrape_web_article` flow directories are placeholders for a planned orchestration flow; the working scrape pipeline is `scrape_markdown_article`.
 
 ## Architecture
 
@@ -23,22 +23,30 @@ flowchart TD
     end
 
     subgraph VAULT["Obsidian vault"]
-        DOM["Context Data /<br/>Subject Matter Domains.md"]
-        INBOX["Inbox/"]
+        DOM["WetHat Lab/Vault Backoffice/<br/>Context Data/Subject Matter Domains.md"]
+        INBOX["WetHat Lab/Inbox/"]
     end
 
     subgraph TRIAGE["rss_feeds_triage flow"]
         direction TB
-        SEL["select_feeds"]
-        LD["load_vault_file"]
-        READ["read_rss_feed<br/>fetch + parse + normalize"]
-        HAS{"new item handles?"}
-        subgraph ITEM["for each item"]
+        SEL["select_feeds<br/>WHERE suspended IS NOT TRUE"]
+        LD["load_vault_file<br/>loads Subject Matter Domains"]
+        READ["read_rss_feed<br/>fetch + parse + normalize -> Redis handles"]
+        HAS{"item_handles.length > 0?"}
+        subgraph ITEM["for each item handle"]
             direction TB
-            DEHY["dehydrate_feed_item<br/>read Redis"]
-            MD["html_to_markdown"]
-            LLM["Article Analysis Agent<br/>OpenRouter / Gemini"]
-            NOTE["assemble_note"]
+            DEHY["dehydrate_feed_item<br/>fetch item from Redis"]
+            SHORT{"feed.short_content?"}
+            SCRAPE_ITEM["scrape_item_article<br/>Browserless fetch & extract"]
+            PASS["pass_item_thru"]
+            MD["item_to_markdown<br/>HTML to Markdown & calculate TTR"]
+            AGENT1["Domain Analysis Agent<br/>OpenRouter: deepseek-v4.1-flash"]
+            BEST["select_best_domain<br/>pick highest relevance (or Et Cetera)"]
+            TTR_CHECK{"item.ttr < 3?"}
+            PLAIN["assemble_plain_note"]
+            AGENT2["Article Analysis Agent<br/>OpenAI: gpt-5.6-luna"]
+            NOTE["assemble_note<br/>reading values & highlights"]
+            PICK_NOTE["note & filename"]
             SAVE["save_to_Inbox"]
         end
         COLD["drop_packet"]
@@ -46,60 +54,70 @@ flowchart TD
 
     subgraph SCRAPE["scrape_markdown_article flow"]
         URL["url"]
-        SCRAPE["scrape_web_content_browserless<br/>rendered HTML -> Redis"]
-        EXTRACT["extract_markdown_article<br/>main-article extraction"]
-        FIN["finalize<br/>drop Redis cache"]
-        NOTE2["assemble_note"]
-        SAVE2["save_to_Inbox"]
+        SCRAPE_PG["scrape_web_content_browserless<br/>rendered HTML -> Redis"]
+        EXTRACT["extract_markdown_article<br/>main-article extraction & Markdown"]
+        FIN["finalize<br/>delete Redis cache entry"]
     end
 
     RSS --> SEL
     DOM --> LD
     SEL --> READ
-    LD --> LLM
     READ --> HAS
-    HAS -- "yes" --> ITEM
+    HAS -- "yes" --> DEHY
     HAS -- "no" --> COLD
     DEHY --> REDIS
     REDIS --> DEHY
-    DEHY --> MD
-    MD --> LLM
-    LLM --> NOTE
-    NOTE --> SAVE
+    DEHY --> SHORT
+    SHORT -- "yes" --> SCRAPE_ITEM
+    SHORT -- "no" --> PASS
+    SCRAPE_ITEM --> MD
+    PASS --> MD
+    LD --> AGENT1
+    MD --> AGENT1
+    AGENT1 --> BEST
+    BEST --> TTR_CHECK
+    TTR_CHECK -- "yes (ttr < 3)" --> PLAIN
+    TTR_CHECK -- "no" --> AGENT2
+    PLAIN --> PICK_NOTE
+    AGENT2 --> NOTE
+    NOTE --> PICK_NOTE
+    PICK_NOTE --> SAVE
     SAVE --> INBOX
-    URL --> SCRAPE
-    SCRAPE --> REDIS
+
+    URL --> SCRAPE_PG
+    SCRAPE_PG --> REDIS
     REDIS --> EXTRACT
     EXTRACT --> FIN
-    FIN --> NOTE2
-    NOTE2 --> SAVE2
-    SAVE2 --> INBOX
 ```
 
-### Production flow
+### Production flow (`rss_feeds_triage`)
 
-1. `select_feeds` runs `SELECT id, name, feed_url, item_limit, last_scan FROM rss_feeds` against the `rss` datatable.
-2. `load_vault_file` reads `WetHat Lab/Context Data/Subject Matter Domains.md`; the file contents become part of the analysis agent's system prompt.
-3. The feed loop runs sequentially. `read_rss_feed` parses RSS or Atom with `@extractus/feed-extractor`, normalizes authors, tags, images, media, and content, stores full items in Redis, and returns a lightweight feed descriptor with `item_handles`.
-4. A feed enters item processing when `item_handles.length > 0`. Empty feeds go to `drop_packet`, which is a no-op sink.
-5. Each item is rehydrated from Redis, converted from HTML to Markdown, and analyzed by the OpenRouter agent using `google/gemini-3.7-flash` with high reasoning effort.
-6. The agent returns structured data containing highlights, relevance for every subject-matter domain, five reading-value axes (`actionability`, `novelty`, `impact`, `rigor`, and `depth`), analyst notes, and an expiration date.
-7. `assemble_note` selects the most relevant domain, calculates a weighted reading value, and renders Obsidian frontmatter, highlights, reading values, analyst notes, metadata, and the article body.
-8. `save_to_Inbox` writes the note below `/mnt/obsidianvaults/WetHat Lab/Inbox`.
+1. `select_feeds` runs `SELECT * FROM rss_feeds WHERE suspended IS NOT TRUE` against the `rss` datatable.
+2. `load_vault_file` reads `Subject Matter Domains.md` from `WetHat Lab/Vault Backoffice/Context Data`; the file contents become the domain taxonomy in the Domain Analysis Agent's system prompt.
+3. The outer loop iterates over the feed records sequentially (skipping failed feeds).
+4. For each feed, `read_rss_feed` fetches and parses RSS or Atom with `@extractus/feed-extractor`, normalizes authors, tags, images, media, links, and content, filters items newer than `last_scan` (or drops already seen items matching `last_item_id`), stores full item objects in Redis under `web_<feed_id>_<item_index>`, updates `last_scan` and `last_item_id` in the `rss_feeds` table, and returns a lightweight feed descriptor with `item_handles`.
+5. Feeds with no new items (`item_handles.length == 0`) branch to `drop_packet`, a no-op sink.
+6. Feeds with `item_handles.length > 0` process items sequentially (skipping failed items):
+   - **Rehydration**: `dehydrate_feed_item` retrieves the full item JSON object from Redis using the handle.
+   - **Content expansion**: If `feed.short_content` is true, `scrape_item_article` fetches the full article via Browserless, extracts the main article content, and updates the item content and `ttr`. Otherwise, `pass_item_thru` passes the item unchanged.
+   - **Markdown conversion**: `item_to_markdown` converts item HTML into clean Markdown and estimates reading time (`ttr` in minutes) if not already set.
+   - **Stage 1 AI (Domain Analysis)**: An AI agent (`deepseek/deepseek-v4.1-flash` via OpenRouter using resource `$res:u/peterernst/openrouter_api_key`) evaluates the article against all configured subject matter domains and outputs structured domain relevance scores (`0..100`) and analyst notes.
+   - **Domain selection**: `select_best_domain` picks the domain with highest relevance. If the top relevance is $\le 50$, the domain falls back to `'Et Cetera'` with an inverted score (`100 - relevance`).
+   - **Stage 2 AI or Plain Note**:
+     - If estimated reading time `ttr < 3`, `assemble_plain_note` formats a clean note without running the reading value model.
+     - If `ttr >= 3`, the **Article Analysis Agent** (`gpt-5.6-luna` via OpenAI using resource `$res:u/peterernst/openai_api_key`) scores five reading-value axes (`actionability`, `novelty`, `impact`, `rigor`, `depth` from `0` to `3`), extracts key highlights, sets an expiration date, and records analyst notes. `assemble_note` calculates a weighted reading score with high-value boosts, renders frontmatter indicators (`⭕`, `⭐`, `⭐⭐`, `⭐⭐⭐`), TL;DR callout, highlights, reading value table, analyst notes, and media embeds.
+   - **Vault export**: `save_to_Inbox` sanitizes the filename and saves the Markdown note under `/mnt/obsidianvaults/WetHat Lab/Inbox`.
 
-The outer feed loop is sequential and skips failed feeds. Item processing is also sequential and skips failed items, so one bad feed or article does not discard the rest of the batch.
+### Scrape flow (`scrape_markdown_article`)
 
-### Scrape flow
-
-1. `scrape_web_content_browserless` renders the page in a self-hosted Browserless browser (with stealth mode and ad-network request blocking) and stores the rendered `head` and `body` HTML in Redis under the source URL.
-2. `extract_markdown_article` reads the cached HTML, extracts the main article with `@extractus/article-extractor` plus custom tag/attribute sanitization, and converts it to Markdown with `html_to_markdown`. The result includes frontmatter metadata (title, author, site, image, description, published date) and a reading-time estimate.
-3. `finalize` deletes the Redis cache entry.
-4. `assemble_note` renders Obsidian frontmatter plus an intro callout (title, thumbnail image, description) above the article body.
-5. `save_to_Inbox` writes the note below `/mnt/obsidianvaults/WetHat Lab/Inbox`.
+1. `scrape_web_content_browserless` renders the page in Browserless (with stealth mode and ad-network request blocking) and stores the rendered `head` and `body` HTML in Redis under the source URL.
+2. `extract_markdown_article` reads the cached HTML from Redis (resolving the Redis connection via `f/lib/redis_client_url`), cleans and sanitizes custom and code tags with LinkeDOM, extracts the main article with `@extractus/article-extractor`, extracts and backfills metadata (OpenGraph, Twitter, Dublin Core, Marfeel, standard meta), and converts the article to Markdown with `@xberg-io/html-to-markdown`.
+3. `finalize` deletes the Redis cache entry for the source URL and returns the extracted article object.
+4. (Optional note assembly): `u/peterernst/scrape_markdown_article/assemble_note` can be used to format the article with frontmatter and an `[!intro]+` callout for saving to the vault Inbox via `f/lib/save_to_Inbox`.
 
 ### Schedules
 
-The `rss_feeds_triage` schedule runs the triage flow every 24 hours (Europe/Berlin timezone), with failure and recovery notifications.
+The `rss_feeds_triage` schedule (`u/peterernst/rss_feeds_triage.schedule.yaml`) runs the triage flow on a cron schedule (`0 0 */24 * * *`, Europe/Berlin timezone) with failure and recovery notifications enabled.
 
 ## Project Structure
 
@@ -107,81 +125,110 @@ The `rss_feeds_triage` schedule runs the triage flow every 24 hours (Europe/Berl
 .
 ├── wmill.yaml                  # Windmill CLI and sync configuration
 ├── wmill-lock.yaml             # Content hashes for synced entities
-├── package.json                # Local Windmill CLI dependency
+├── package.json                # Local Windmill CLI and TypeScript dependencies
 ├── tsconfig.json               # TypeScript project configuration
 ├── tsconfig.wmill.json         # Windmill TypeScript paths and settings
 ├── rt.d.ts                     # Windmill resource-type declarations
 ├── AGENTS.md                   # User-owned agent instructions
 ├── AGENTS.wmill.md             # Windmill-managed agent instructions
 │
-├── f/lib/                      # Shared scripts
-│   ├── read_rss_feed.ts        # RSS/Atom parsing, normalization, and Redis cache
-│   ├── html_to_markdown.ts     # HTML to Markdown conversion
-│   ├── extract_markdown_article.ts # Main-article extraction from cached HTML
-│   ├── load_vault_file.ts      # Read a mounted vault file
-│   ├── save_to_Inbox.ts        # Write a note to the vault Inbox
-│   ├── write_to_vault.ts       # Write a file anywhere in the vault
-│   └── scrape_web_content_browserless.ts # Browserless scrape and Redis cache
+├── docker/                     # Docker Compose setups for dependencies
+│   ├── windmill/               # Windmill server, worker, Caddy, Postgres
+│   ├── redis/                  # Redis Stack Server (on wmnet network)
+│   └── browserless/            # Browserless Chromium service (on wmnet network)
+│
+├── f/lib/                      # Shared reusable scripts and variables
+│   ├── read_rss_feed.ts        # RSS/Atom fetch, parse, normalize, Redis caching
+│   ├── html_to_markdown.ts     # HTML to clean Markdown with media & link resolving
+│   ├── extract_markdown_article.ts # Main-article extraction and metadata parsing
+│   ├── scrape_web_content_browserless.ts # Browserless web scraper
+│   ├── load_vault_file.ts      # Read file from mounted Obsidian vault
+│   ├── save_to_Inbox.ts        # Save note to vault Inbox folder
+│   ├── write_to_vault.ts       # Write arbitrary file to mounted vault
+│   └── redis_client_url.variable.yaml # Redis client connection string variable
 │
 └── u/peterernst/
-    ├── rss_feeds_triage/       # Production feed scripts and SQL
-    │   ├── select_feeds.pg.sql
-    │   ├── select_hot_feeds.pg.sql # Alternate query, not used by the main flow
-    │   ├── download_policy.pg.sql
-    │   ├── q.pg.sql
-    │   ├── dehydrate_feed_item.ts
+    ├── openai_api_key.resource.yaml      # OpenAI API key resource
+    ├── openrouter_api_key.resource.yaml  # OpenRouter API key resource
+    ├── drop_packet.ts                    # No-op sink for feeds without new items
+    ├── rss_feeds_triage.schedule.yaml    # Scheduled execution configuration
+    │
+    ├── rss_feeds_triage/                 # Standalone scripts & queries for triage
+    │   ├── select_feeds.pg.sql           # Query active feeds (WHERE suspended IS NOT TRUE)
+    │   ├── select_hot_feeds.pg.sql       # Query feeds for scrape evaluation
+    │   ├── select_best_domain.ts         # Top domain selection with fallback logic
+    │   ├── scrape_item_article.ts        # Full-text scraper for short-content items
+    │   ├── dehydrate_feed_item.ts        # Rehydrate feed item from Redis
+    │   ├── item_to_markdown.ts           # Markdown conversion and TTR calculation
+    │   ├── assemble_note.ts              # Obsidian note rendering with metrics
+    │   ├── download_policy.pg.sql        # Query scrape policy for feed
+    │   └── q.pg.sql                      # Query helper for domain taxonomy
+    │
+    ├── rss_feeds_triage__flow/           # Production feed triage flow
+    │   ├── flow.yaml                     # Flow definition with two-stage AI agents
+    │   ├── assemble_plain_note.ts        # Inline script for short articles (< 3 min TTR)
+    │   └── pass_item_thru.ts             # Pass-through for full content items
+    │
+    ├── scrape_markdown_article/          # Scrape note assembly script
     │   └── assemble_note.ts
-    ├── rss_feeds_triage__flow/ # Production orchestration
-    │   └── flow.yaml
-    ├── rss_feeds_triage.schedule.yaml # Daily triage schedule
-    ├── scrape_markdown_article/    # Scrape-flow note assembly
-    │   └── assemble_note.ts
-    ├── scrape_markdown_article__flow/ # Production scrape orchestration
+    ├── scrape_markdown_article__flow/    # Production web page scrape orchestration
     │   ├── flow.yaml
-    │   └── finalize.ts
-    ├── scrape_web_article/         # Placeholder for a planned flow
-    ├── tests/rss/               # RSS fixture and regression flows
-    │   ├── add_test_feed__flow/
-    │   ├── dump_test_feed__flow/
-    │   ├── test_feed__flow/
-    │   └── *.ts
-    ├── tests/scrape/            # Scrape regression flows
-    │   ├── add_scrape_test__flow/
-    │   ├── dump_scraped_article__flow/
-    │   ├── test_scrape__flow/
-    │   └── *.ts
-    ├── Sandbox__flow/           # Experimental flow
-    ├── drop_packet.ts           # No-op sink for feeds with no new items
-    └── *.resource.yaml          # Windmill resource definitions
+    │   └── finalize.ts                   # Cleanup Redis cache
+    │
+    ├── scrape_web_article/               # Placeholder for planned flow
+    ├── scrape_web_article__flow/
+    ├── prodigious_flow__flow/            # Experimental flow placeholder
+    ├── Sandbox__flow/                    # Experimental flow
+    │
+    └── tests/
+        ├── rss/                          # RSS fixture and regression flows
+        │   ├── add_test_feed__flow/      # Download and store XML test fixture
+        │   ├── dump_test_feed__flow/     # Dump fixture items to vault Inbox
+        │   ├── test_feed__flow/          # Verify parsed items against fixture
+        │   └── *.ts
+        └── scrape/                       # Scrape regression flows
+            ├── add_scrape_test__flow/    # Add web page scrape test record
+            ├── dump_scraped_article__flow/ # Dump extracted Markdown to Inbox
+            ├── test_scrape__flow/        # Verify extraction against reference
+            └── *.ts
 ```
 
 The `__flow` directory suffix is enabled by `nonDottedPaths: true` in `wmill.yaml`; the Windmill entity paths used in commands omit that suffix.
 
 ## Dependencies and Resources
 
-TypeScript scripts use these Windmill-resolved dependencies:
+TypeScript scripts run on **Bun** (`defaultTs: bun` in `wmill.yaml`) and use these Windmill-resolved dependencies:
 
 | Dependency | Used for |
 | --- | --- |
 | `@extractus/feed-extractor` | RSS 2.0, Atom, and RSS 1.0 parsing |
 | `@extractus/article-extractor` | Main-article extraction from rendered HTML |
-| `@xberg-io/html-to-markdown` | Markdown conversion with link and media handling |
-| `linkedom` | Fast DOM parsing for article-HTML sanitization |
-| `redis` | Item and scraped-page storage |
-| `windmill-client` | Windmill datatable access |
+| `@xberg-io/html-to-markdown` | HTML to Markdown conversion with link and video media handling |
+| `linkedom` | Fast DOM parsing for article-HTML sanitization and head metadata extraction |
+| `redis` | Storing and retrieving normalized items and scraped HTML |
+| `yaml` | Obsidian frontmatter stringification in note assembly |
+| `windmill-client` | Windmill datatable access and variable resolution |
 
-The main flow expects:
+The environment expects the following services and configurations:
 
-- A Windmill datatable named `rss` with an `rss_feeds` table containing `id`, `name`, `feed_url`, `item_limit`, `last_scan`, and `short_content`.
-- Redis at `redis://redis:6379`.
-- A self-hosted Browserless service at `http://browserless:3000` (see `docker/browserless/compose.yml`).
-- An OpenRouter resource at `u/peterernst/openrouter_windmill`.
-- An Obsidian vault mounted at `/mnt/obsidianvaults/WetHat Lab` with `Context Data/Subject Matter Domains.md` and an existing `Inbox/` directory.
-- Bun available on the Windmill worker, because the project default is `defaultTs: bun`.
-
-The RSS fixture flows additionally use a `test_feeds` table in the `rss` datatable. The fixture lookup expects at least `id`, `name`, `url`, and `xml` columns.
-
-The scrape regression flows use a Windmill datatable named `test` with a `web_scrape_test` table containing `id`, `url`, `head`, `body`, and `markdown` columns.
+- **Windmill Datatable `rss`**:
+  - `rss_feeds` table containing: `id`, `feed_name`, `feed_url`, `item_limit`, `last_scan`, `last_item_id`, `short_content`, and `suspended`.
+  - `test_feeds` table (for RSS regression flows) containing: `id`, `feed_name`, `feed_url`, `xml`, and test item definitions.
+- **Windmill Datatable `test`**:
+  - `web_scrape_test` table (for scrape regression flows) containing: `id`, `url`, `head`, `body`, and `markdown`.
+- **Windmill Variables**:
+  - `f/lib/redis_client_url`: Redis connection string (e.g. `redis://redis:6379`).
+- **Windmill Resources & Secrets**:
+  - `u/peterernst/openrouter_api_key`: OpenRouter resource linked to secret variable `u/peterernst/openrouter_api_key` (used for `deepseek/deepseek-v4.1-flash`).
+  - `u/peterernst/openai_api_key`: OpenAI resource linked to secret variable `u/peterernst/openai_api_key` (used for `gpt-5.6-luna`).
+- **Self-hosted Services** (Docker Compose files in `docker/` on shared network `wmnet`):
+  - Redis Stack Server at `redis://redis:6379` (`docker/redis/compose.yml`).
+  - Browserless Chromium service at `http://browserless:3000` with stealth mode (`docker/browserless/compose.yml`).
+  - Windmill server & workers (`docker/windmill/docker-compose.yml`).
+- **Obsidian Vault Mount**:
+  - Mounted at `/mnt/obsidianvaults/WetHat Lab` on the worker container.
+  - Requires `Vault Backoffice/Context Data/Subject Matter Domains.md`.
+  - Requires an existing `Inbox/` directory.
 
 ## Local Development
 
@@ -259,10 +306,12 @@ The scrape test flows exercise the Browserless scrape and article-extraction pip
 
 There is no automated root-level test command yet; `npm test` is still the placeholder from `package.json`.
 
-## Current Gaps
+## Current Gaps and Notes
 
-- `select_hot_feeds` and the related SQL helpers are available for experimentation but are not referenced by `rss_feeds_triage__flow`.
-- The `scrape_web_article` flow directories are empty placeholders; the working scrape pipeline is `scrape_markdown_article__flow`.
+- `select_hot_feeds.pg.sql`, `download_policy.pg.sql`, and `q.pg.sql` in `u/peterernst/rss_feeds_triage` are query helpers and experimental queries not directly invoked by `rss_feeds_triage__flow`.
+- `u/peterernst/scrape_web_article`, `u/peterernst/scrape_web_article__flow`, and `u/peterernst/prodigious_flow__flow` are placeholder directories.
+- `u/peterernst/Sandbox__flow` is an experimental testing flow.
+- `u/peterernst/scrape_markdown_article/assemble_note` is available for formatting standalone web articles into Obsidian callout notes before saving to Inbox.
 
 ## License
 
