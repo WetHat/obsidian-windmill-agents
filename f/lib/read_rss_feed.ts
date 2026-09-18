@@ -384,9 +384,9 @@ const READER_OPTIONS: ParserOptions = {
       || feed_data.updated
       || feed_data["dc:date"]
       || feed_data.modified;
-    if (typeof published === 'string') {
-      feed_data.published = new Date(published).toISOString();
-    }
+    feed_data.published = typeof published === 'string'
+      ? new Date(published).toISOString()
+      : new Date().toISOString();
     return feed_data;
   },
 
@@ -544,8 +544,6 @@ async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: 
       return item;
     }) ?? [];
 
-  const last_item_id = feed_items.length > 0 ? feed_items[0].id : rec.last_item_id;
-
   // 3. filter items only if scan date is available
   if (rec.last_scan) {
     const cutoff = new Date(rec.last_scan);
@@ -555,6 +553,9 @@ async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: 
     });
   }
 
+  // Get the last_item_id before trimming items
+  const last_item_id = feed_items.length > 0 ? feed_items[0].id : rec.last_item_id;
+
   // 4. store item objects in Redis
   const
     client = createClient({ url: "redis://redis:6379" }),
@@ -563,6 +564,10 @@ async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: 
   await client.connect();
 
   for (const item of feed_items) {
+    if (item.id === rec.last_item_id) {
+      console.log(`Feed ${rec.id} Item Index ${item.item_index} id "${item.id}" already found last time`);
+      break; // this item we already had in the previous scan
+    }
     const handle = `${handle_prefix}_${item.feed_id}_${item.item_index}`;
     await client.json.set(handle, "$", item);
     item_handles.push(handle);
@@ -579,7 +584,7 @@ async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: 
     last_item_id,
     short_content: rec.short_content,
     item_handles,
-  }
+  };
 
   if (feed_data.image) { feed.image = feed_data.image };
   return feed;

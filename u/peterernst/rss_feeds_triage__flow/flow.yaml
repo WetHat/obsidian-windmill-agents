@@ -41,7 +41,8 @@ value:
               type: script
               input_transforms:
                 feed_record:
-                  type: static
+                  type: javascript
+                  expr: flow_input.iter.value
               is_trigger: false
               path: f/lib/read_rss_feed
           - id: d
