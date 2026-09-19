@@ -536,7 +536,7 @@ async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: 
         description: item_data.description ?? "🚫",
         link: item_data.link ?? "🚫",
         authors: item_data.authors,
-        published: item_data.published ? item_data.published : feed_data.published,
+        published: item_data.published,
         tags: item_data.tags,
         content: item_data.content ?? '🚫',
         media: item_data.media
@@ -544,17 +544,14 @@ async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: 
       return item;
     }) ?? [];
 
+  // Get the last_item_id before trimming items
+  const last_item_id = feed_items.length > 0 ? feed_items[0].id : rec.last_item_id;
+
   // 3. filter items only if scan date is available
   if (rec.last_scan) {
     const cutoff = new Date(rec.last_scan);
-    feed_items = feed_items.filter(i => {
-      const pubdate = new Date(i.published);
-      return pubdate >= cutoff;
-    });
+    feed_items = feed_items.filter(i => !i.published || new Date(i.published) >= cutoff);
   }
-
-  // Get the last_item_id before trimming items
-  const last_item_id = feed_items.length > 0 ? feed_items[0].id : rec.last_item_id;
 
   // 4. store item objects in Redis
   const
