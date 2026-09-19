@@ -49,7 +49,7 @@
 
     "strnum": ["strnum@2.4.2", "", { "dependencies": { "anynum": "^1.0.1" } }, "sha512-rDG3Ah4TV0k1hWvLSzkZtMmLN9+eS+h3knq4MP6A42Y3Yh5qGNnOUs1jJkoSr8FG5dsL28c7KgkIBzSEykqtuw=="],
 
-    "windmill-client": ["windmill-client@1.814.0", "", {}, "sha512-8IDg0y6646UtYwDMMPLw+EbTvAG/sv6xabBf+P/jt/BEgxHri6efsvV+OTgxuUtR3EhxpXqBauf3rappSWolXQ=="],
+    "windmill-client": ["windmill-client@1.815.0", "", {}, "sha512-yAOKHPP3H8aXA0JH7ah8qYBIB2ZlsaC4Ua6A4+ri0TrfkGe07V6V37+uirRCqNaK5585kay/xaqtzEZkHXoepQ=="],
 
     "xml-naming": ["xml-naming@0.3.0", "", {}, "sha512-ghig2TBE/H11aOVgmahA3MhimvkBr6JIYknH/Dhdk10nXwdbIqBJsbfMxpvFPG8bAw77gN29aQWvKpmVoPlvPQ=="],
   }
