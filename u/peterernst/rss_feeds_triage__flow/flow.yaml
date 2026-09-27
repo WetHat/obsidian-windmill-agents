@@ -116,6 +116,9 @@ value:
                             value:
                               type: aiagent
                               input_transforms:
+                                enabled_tools:
+                                  type: static
+                                  value: null
                                 max_completion_tokens:
                                   type: static
                                   value: 64000
@@ -174,10 +177,9 @@ value:
                                 provider:
                                   type: static
                                   value:
-                                    kind: openrouter
-                                    model: deepseek/deepseek-v4.1-flash
-                                    reasoning_effort: xhigh
-                                    resource: $res:u/peterernst/openrouter_api_key
+                                    kind: openai
+                                    model: gpt-6-luna
+                                    resource: $res:u/peterernst/openai_api_key
                                 streaming:
                                   type: static
                                   value: false
@@ -335,6 +337,9 @@ value:
                                   value:
                                     type: aiagent
                                     input_transforms:
+                                      enabled_tools:
+                                        type: static
+                                        value: null
                                       max_completion_tokens:
                                         type: static
                                         value: 128000
@@ -427,10 +432,9 @@ value:
                                       provider:
                                         type: static
                                         value:
-                                          kind: openai
-                                          model: gpt-5.6-luna
-                                          reasoning_effort: high
-                                          resource: $res:u/peterernst/openai_api_key
+                                          kind: openrouter
+                                          model: z-ai/glm-5.3-flash
+                                          resource: $res:u/peterernst/openrouter_api_key
                                       streaming:
                                         type: static
                                         value: false
