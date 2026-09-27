@@ -431,15 +431,16 @@ function extract_metadata(head: string): IFrontmatter {
     parser = new DOMParser(),
     dom = parser.parseFromString(`<html><head>${head}</head><body></body></html>`, "text/html"),
     headElement: HTMLHeadElement = dom.head,
-    title = dom.title?.innerText;
+    title = headElement.querySelector('title');
 
   // populate open graph property
   const ograph: Record<string, string | string[]> = {};
 
   // 1. Special case for `title`
   if (title) {
-    ograph['title'] = title;
+    ograph['title'] = title.innerText;
   }
+
   // 2. extract all configured metadata in order
   for (const metagroup of [standard, og, article, dc, mrf, twitter]) {
     // extract content for this group
