@@ -11,7 +11,6 @@ value:
           database:
             type: static
             value: datatable://rss
-        hash: null
         is_trigger: false
         path: u/peterernst/rss_feeds_triage/select_feeds
     - id: h
@@ -82,7 +81,6 @@ value:
                                           item:
                                             type: javascript
                                             expr: results.dehydrate
-                                        hash: null
                                         is_trigger: false
                                         path: u/peterernst/rss_feeds_triage/scrape_item_article
                                   expr: results.feed.short_content
@@ -108,7 +106,6 @@ value:
                                 item:
                                   type: javascript
                                   expr: results.content
-                              hash: null
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/item_to_markdown
                           - id: relevance
@@ -301,7 +298,6 @@ value:
                                 domains:
                                   type: javascript
                                   expr: results.relevance.output.domain_relevance
-                              hash: null
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/select_best_domain
                           - id: ttr
@@ -356,10 +352,10 @@ value:
                                           $schema: https://json-schema.org/draft/2020-12/schema
                                           type: object
                                           order:
-                                            - highlights
                                             - reading_values
                                             - analyst_notes
                                             - expires
+                                            - smart_brevity
                                           properties:
                                             analyst_notes:
                                               type: array
@@ -374,13 +370,6 @@ value:
                                               default: ''
                                               nullable: false
                                               title: Expiration Date
-                                            highlights:
-                                              type: array
-                                              description: Article highlights
-                                              default: []
-                                              items:
-                                                type: string
-                                              title: Highlights
                                             reading_values:
                                               type: array
                                               description: 'Article reading values. One for each axis enum value '
@@ -420,21 +409,46 @@ value:
                                               length: 5
                                               nullable: false
                                               title: Reading Values
+                                            smart_brevity:
+                                              type: object
+                                              description: Introduce the subject before specialist details
+                                              default: null
+                                              nullable: false
+                                              order:
+                                                - tease
+                                                - lede
+                                                - why_it_matters
+                                              properties:
+                                                lede:
+                                                  type: string
+                                                  description: Conclusion or thesis, then a repeatedly supported claim, then the
+                                                    first complete framing claim
+                                                  default: ''
+                                                tease:
+                                                  type: string
+                                                  description: Capture the central takeaway
+                                                  default: ''
+                                                why_it_matters:
+                                                  type: string
+                                                  description: Supported significance or implications
+                                                  default: ''
+                                              required: []
+                                              title: Smart Brevity Takeaway
                                           required:
-                                            - highlights
-                                            - domain_relevance
                                             - reading_values
                                             - analyst_notes
                                             - expires
+                                            - smart_brevity
                                       output_type:
                                         type: static
                                         value: text
                                       provider:
                                         type: static
                                         value:
-                                          kind: openrouter
-                                          model: z-ai/glm-5.3-flash
-                                          resource: $res:u/peterernst/openrouter_api_key
+                                          kind: openai
+                                          model: gpt-6.1-sol
+                                          reasoning_effort: medium
+                                          resource: $res:u/peterernst/openai_api_key
                                       streaming:
                                         type: static
                                         value: false
@@ -484,17 +498,30 @@ value:
 
                                           # Success Criteria\r
 
-                                          - The provided article content is the
-                                          sole authoritative source of truth for
-                                          the analysis. Except for estimating
-                                          the expiration date (\"expiration\"),
-                                          no external knowledge or training data
-                                          may be used to supplement the
-                                          content.\r
+                                          - Use the supplied article body as the
+                                          only source of factual evidence for
+                                          scoring and summarization. General
+                                          language understanding and rubric
+                                          application are permitted, but do not
+                                          introduce external facts, comparisons,
+                                          benchmarks, or verification.\r
 
-                                          - Every domain from Subject Matter
-                                          Domains has been fully addressed in
-                                          'domain_relevance'.\r
+                                          - Treat source assertions as
+                                          assertions, not independently verified
+                                          facts.\r
+
+                                          - Use frontmatter for classification
+                                          context and publication timing; title
+                                          and tags alone do not substantiate
+                                          article claims.\r
+
+                                          - Assess the article on all five
+                                          reading-value axes.\r
+
+                                          - Treat 'domain' and 'relevance' as
+                                          upstream classification metadata; do
+                                          not generate domain_relevance or
+                                          recalculate relevance.\r
 
                                           \r
 
@@ -514,38 +541,15 @@ value:
 
                                           \r
 
-                                          ## 'highlights'\r
-
-                                          1-2 sentences, 1 line each. Each
-                                          highlight must:\r
-
-                                          - Quote or reference a **specific,
-                                          non‑obvious, decision‑relevant claim**
-                                          from the article. \r
-
-                                          - Capture **insight, tension,
-                                          contradiction, or impact**, not
-                                          surface‑level restatements. \r
-
-                                          - Be **semantically dense**: each
-                                          highlight should express _why the
-                                          referenced claim matters_.\r
-
-                                          - Avoid trivialities, summaries, or
-                                          generic statements.\r
-
-                                          - Avoid paraphrasing the article’s
-                                          introduction, section headers, or
-                                          obvious facts.\r
-
-                                          \r
-
                                           ## 'reading_values'\r
 
-                                          Exactly 5 axis objects (one for each
-                                          'axis' discriminator) describing
-                                          article value, each per semantics
-                                          defined below:\r
+                                          Return exactly five axis objects, in
+                                          this exact order: actionability,
+                                          novelty, impact, rigor, depth. Include
+                                          each axis exactly once. Every value
+                                          must be an integer from 0 to 3. Each
+                                          object describes article value per the
+                                          semantics defined below:\r
 
                                           - 'axis':\r
 
@@ -708,17 +712,49 @@ value:
 
                                           ## 'expires'\r
 
-                                          The ISO date when the article’s
-                                          information is expected to become
-                                          factually outdated, superseded, or no
-                                          longer useful based on the article's
-                                          frontmatter property 'published' and
-                                          domain‑specific update cycles (e.g.,
-                                          tech releases, policy changes,
-                                          scientific revisions, event
+                                          For estimating 'expires' only, general
+                                          knowledge of domain-specific update
+                                          cycles may be used; identify that
+                                          basis in the expiration rationale and
+                                          do not use it to supplement scoring or
+                                          summarization. The ISO date when the
+                                          article’s information is expected to
+                                          become factually outdated, superseded,
+                                          or no longer useful based on the
+                                          article's frontmatter property
+                                          'published' and domain‑specific update
+                                          cycles (e.g., tech releases, policy
+                                          changes, scientific revisions, event
                                           timelines). Add the rationale for the
                                           expiration date as a separate item to
                                           'analyst_notes'.\r
+
+                                          \r
+
+                                          ## 'smart_brevity'\r
+
+                                          Introduce the subject before
+                                          specialist details.\r
+
+                                          - 'tease': ≤ 7 words captureing the
+                                          central takeaway without overstating
+                                          certainty; sentence case; no trailing
+                                          period.\r
+
+                                          - 'lede': ≤ 3 direct, high-signal
+                                          sentences, without setup; Prioritize
+                                          the explicit conclusion or thesis > a
+                                          claim repeatedly\r
+
+                                          \     supported across the source >
+                                          the first complete framing claim.\r
+
+                                          - 'why_it_matters': ≤ 3 concise
+                                          sentences of supported implications.
+                                          If none is established, use\r
+
+                                          \     \"The note does not establish a
+                                          broader impact.\"\r
 
                                           `"
                                       temperature:

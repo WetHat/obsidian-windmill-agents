@@ -38,12 +38,6 @@ schema:
           type: string
           description: ''
           originalType: string
-        highlights:
-          type: array
-          description: ''
-          items:
-            type: string
-          originalType: string[]
         reading_values:
           type: array
           description: ''
@@ -69,6 +63,23 @@ schema:
                 description: ''
                 originalType: string
           originalType: record[]
+        smart_brevity:
+          type: object
+          description: ''
+          originalType: string[]
+          properties:
+            lede:
+              type: string
+              description: ''
+              originalType: string
+            tease:
+              type: string
+              description: ''
+              originalType: string
+            why_it_matters:
+              type: string
+              description: ''
+              originalType: string
     domain:
       type: object
       description: ''

@@ -17,7 +17,11 @@ interface IReadingValue {
 };
 
 interface IArticleAnalysis {
-  highlights: string[],
+  smart_brevity: {
+    tease: string,
+    lede: string,
+    why_it_matters: string
+  },
   expires: string,
   domain_relevance: IDomainRelevance[],
   reading_values: IReadingValue[],
@@ -53,9 +57,13 @@ reading_time: ${item.ttr ?? 0}
 > [!tldr]
 > ${image_embed}${item.description}
 
-# Highlights
+# Takeaway
 
-${analysis.highlights.map(h => '- ' + h).join('\n')}
+> [!highlights]+ ${analysis.smart_brevity.tease}
+> ${analysis.smart_brevity.lede}
+>
+> ==Why it matters==
+> ${analysis.smart_brevity.why_it_matters}
 
 # Reading Values
 
