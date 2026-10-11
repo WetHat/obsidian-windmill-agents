@@ -1,0 +1,4 @@
+description: The mounted root folder for Obsidian PKM vaults
+value: /mnt/obsidianvaults
+is_secret: false
+labels: []

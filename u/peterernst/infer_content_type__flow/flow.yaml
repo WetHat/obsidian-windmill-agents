@@ -1,0 +1,99 @@
+summary: Infer Content Type
+description: ''
+value:
+  modules:
+    - id: types
+      summary: Read type definitions
+      value:
+        type: script
+        input_transforms:
+          extension:
+            type: static
+            value: md
+          filename:
+            type: static
+            value: Note Type Definitions
+          location:
+            type: static
+            value: Vault Backoffice
+          vault:
+            type: static
+            value: WetHat Lab
+        is_trigger: false
+        path: f/lib/load_vault_file
+    - id: definitions
+      summary: Extract type definitions
+      value:
+        type: script
+        input_transforms:
+          markdown:
+            type: javascript
+            expr: results.types.data
+        is_trigger: false
+        path: f/lib/extract_markdown_table_data
+    - id: prepare
+      summary: Prepare Choice Request
+      value:
+        type: rawscript
+        content: '!inline prepare_choice_request.ts'
+        input_transforms:
+          content:
+            type: javascript
+            expr: flow_input.content
+          table_data:
+            type: javascript
+            expr: results.definitions
+        lock: '!inline prepare_choice_request.lock'
+        language: bun
+    - id: decide
+      summary: Request Decision
+      value:
+        type: script
+        input_transforms:
+          body:
+            type: javascript
+            expr: results.prepare.body
+          headers:
+            type: javascript
+            expr: results.prepare.headers
+          url:
+            type: javascript
+            expr: results.prepare.url
+        is_trigger: false
+        path: hub/11643/http/send_post_request
+    - id: parse
+      summary: Parse Answers
+      value:
+        type: rawscript
+        content: '!inline parse_answers.ts'
+        input_transforms:
+          x:
+            type: javascript
+            expr: results.decide
+        lock: '!inline parse_answers.lock'
+        language: bun
+  groups: []
+schema:
+  order:
+    - content
+  properties:
+    content:
+      type: string
+      description: Markdown content for type determination
+      default: ''
+      nullable: false
+      placeholder: content ...
+      title: Content
+  required:
+    - content
+  x-windmill-dyn-select-code: |-
+    // you can use filterText to filter the results from the backend
+    // you can refer to other args directly as parameters (e.g. foobar: string)
+    export function vault(filterText: string) {
+    	return [
+    		{ label: 'Foo', value: 'foo' },
+    		{ label: 'Bar', value: 'bar' }
+    	];
+    }
+  x-windmill-dyn-select-lang: bun
+tag: bun

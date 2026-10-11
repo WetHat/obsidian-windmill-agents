@@ -1,0 +1,15 @@
+summary: Extract table data
+description: This script was edited in place of flow u/peterernst/Sandbox  by peterernst.
+lock: '!inline f/lib/extract_markdown_table_data.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    markdown:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+  required:
+    - markdown
