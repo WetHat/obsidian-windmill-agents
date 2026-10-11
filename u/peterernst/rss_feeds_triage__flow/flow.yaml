@@ -26,7 +26,10 @@ value:
             value: Subject Matter Domains
           location:
             type: static
-            value: WetHat Lab/Vault Backoffice/Context Data
+            value: Vault Backoffice/Context Data
+          vault:
+            type: static
+            value: WetHat Lab
         is_trigger: false
         path: f/lib/load_vault_file
     - id: b
@@ -108,196 +111,44 @@ value:
                                   expr: results.content
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/item_to_markdown
-                          - id: relevance
-                            summary: Domain Analysis Agent
+                          - id: prep
+                            summary: Prepare Domain Decision
                             value:
-                              type: aiagent
+                              type: script
                               input_transforms:
-                                enabled_tools:
-                                  type: static
-                                  value: null
-                                max_completion_tokens:
-                                  type: static
-                                  value: 64000
-                                max_iterations:
-                                  type: static
-                                  value: 10
-                                memory:
-                                  type: static
-                                  value:
-                                    kind: off
-                                output_schema:
-                                  type: static
-                                  value:
-                                    $schema: https://json-schema.org/draft/2020-12/schema
-                                    type: object
-                                    order:
-                                      - domain_relevance
-                                      - analyst_notes
-                                    properties:
-                                      analyst_notes:
-                                        type: array
-                                        description: Commentary, difficulties, or ambiguities encountered during
-                                          relevance determination
-                                        default: []
-                                        items:
-                                          type: string
-                                        title: Analyst Notes
-                                      domain_relevance:
-                                        type: array
-                                        description: Article relevance to configured domains
-                                        default: []
-                                        items:
-                                          type: object
-                                          properties:
-                                            domain:
-                                              type: string
-                                              description: Name of the subject matter domain
-                                              default: ''
-                                              nullable: false
-                                              title: Domain Name
-                                            relevance:
-                                              type: number
-                                              description: Relevance score of the subject matter domain
-                                              default: 0
-                                              max: 100
-                                              min: 0
-                                              nullable: false
-                                              placeholder: 0...1
-                                              title: Relevance
-                                        title: Domain Relevance
-                                    required:
-                                      - domain_relevance
-                                output_type:
-                                  type: static
-                                  value: text
-                                provider:
-                                  type: static
-                                  value:
-                                    kind: openai
-                                    model: gpt-6-luna
-                                    resource: $res:u/peterernst/openai_api_key
-                                streaming:
-                                  type: static
-                                  value: false
-                                system_prompt:
+                                content:
                                   type: javascript
-                                  expr: "`# Primary Operation\r
-
-                                    Evaluate the relevance of an article to a
-                                    set of subject matter domains and create a
-                                    structured JSON report.\r
-
-                                    \r
-
-                                    # Subject Matter Domains\r
-
-                                    \r
-
-                                    ${results.h.data}\r
-
-                                    \r
-
-                                    # Input\r
-
-                                    A user message block containing an article
-                                    (Markdown) with frontmatter metadata:\r
-
-                                    - type: rssitem\r
-
-                                    - title: article title\r
-
-                                    - published: date when the article was
-                                    published\r
-
-                                    - tags: list of tags classifying the article
-                                    content\r
-
-                                    \r
-
-                                    # Success Criteria\r
-
-                                    - The provided article content is the sole
-                                    authoritative source of truth for the
-                                    analysis. No external knowledge or training
-                                    data may be used to supplement the
-                                    content.\r
-
-                                    - Every domain from Subject Matter Domains
-                                    has been fully addressed in
-                                    'domain_relevance'.\r
-
-                                    \r
-
-                                    # Contingencies\r
-
-                                    Content is missing/empty/too short to judge
-                                    -> score conservatively and state that
-                                    limitation\r
-
-                                    \r
-
-                                    # Deliverables\r
-
-                                    Exactly one JSON Object per the provided
-                                    schema and semantics defined below.\r
-
-                                    \r
-
-                                    ## 'domain_relevance'\r
-
-                                    One object per domain from Subject Matter
-                                    Domains. Each object must contain:\r
-
-                                    - 'domain': Exactly one name from Subject
-                                    Matter Domains\r
-
-                                    - 'relevance': Relevance per the Relevance
-                                    Scoring Rubric\r
-
-                                    \r
-
-                                    ## 'analyst_notes'\r
-
-                                    Limitations, uncertainties, or
-                                    meta‑observations about relevance
-                                    determination (1–2 sentences each). Each
-                                    note must specify whether it is explicit or
-                                    inferred\".\r
-
-                                    `"
-                                temperature:
-                                  type: static
-                                  value: null
-                                user_attachments:
-                                  type: static
-                                  value: []
-                                user_message:
+                                  expr: results.mditem.content
+                                domains:
                                   type: javascript
-                                  expr: "`---\r
-
-                                    type: rssitem\r
-
-                                    title: \"${results.mditem.title}\"\r
-
-                                    published: \"${results.mditem.published}\"\r
-
-                                    tags: [ ${results.mditem.tags.join(',')}]\r
-
-                                    ---\r
-
-                                    \r
-
-                                    ${results.mditem.content}`"
-                              tools: []
+                                  expr: results.h.data
+                              hash: null
+                              is_trigger: false
+                              path: u/peterernst/rss_feeds_triage/prep
+                          - id: score
+                            summary: Score Domains
+                            value:
+                              type: script
+                              input_transforms:
+                                body:
+                                  type: javascript
+                                  expr: results.prep.body
+                                headers:
+                                  type: javascript
+                                  expr: results.prep.headers
+                                url:
+                                  type: javascript
+                                  expr: results.prep.url
+                              is_trigger: false
+                              path: hub/11643/http/send_post_request
                           - id: best
                             summary: Select best domain
                             value:
                               type: script
                               input_transforms:
-                                domains:
+                                response:
                                   type: javascript
-                                  expr: results.relevance.output.domain_relevance
+                                  expr: results.score
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/select_best_domain
                           - id: ttr
@@ -424,15 +275,21 @@ value:
                                                   description: Conclusion or thesis, then a repeatedly supported claim, then the
                                                     first complete framing claim
                                                   default: ''
+                                                  nullable: false
                                                 tease:
                                                   type: string
                                                   description: Capture the central takeaway
                                                   default: ''
+                                                  nullable: false
                                                 why_it_matters:
                                                   type: string
                                                   description: Supported significance or implications
                                                   default: ''
-                                              required: []
+                                                  nullable: false
+                                              required:
+                                                - tease
+                                                - lede
+                                                - why_it_matters
                                               title: Smart Brevity Takeaway
                                           required:
                                             - reading_values
@@ -498,29 +355,29 @@ value:
 
                                           # Success Criteria\r
 
-                                          - Use the supplied article body as the
-                                          only source of factual evidence for
-                                          scoring and summarization. General
+                                          - [ ] Use the supplied article body as
+                                          the only source of factual evidence
+                                          for scoring and summarization. General
                                           language understanding and rubric
                                           application are permitted, but do not
                                           introduce external facts, comparisons,
                                           benchmarks, or verification.\r
 
-                                          - Treat source assertions as
+                                          - [ ] Treat source assertions as
                                           assertions, not independently verified
                                           facts.\r
 
-                                          - Use frontmatter for classification
-                                          context and publication timing; title
-                                          and tags alone do not substantiate
-                                          article claims.\r
+                                          - [ ] Use frontmatter for
+                                          classification context and publication
+                                          timing; title and tags alone do not
+                                          substantiate article claims.\r
 
-                                          - Assess the article on all five
+                                          - [ ] Assess the article on all five
                                           reading-value axes.\r
 
-                                          - Treat 'domain' and 'relevance' as
-                                          upstream classification metadata; do
-                                          not generate domain_relevance or
+                                          - [ ] Treat 'domain' and 'relevance'
+                                          as upstream classification metadata;
+                                          do not generate domain_relevance or
                                           recalculate relevance.\r
 
                                           \r
@@ -543,12 +400,12 @@ value:
 
                                           ## 'reading_values'\r
 
-                                          Return exactly five axis objects, in
-                                          this exact order: actionability,
-                                          novelty, impact, rigor, depth. Include
-                                          each axis exactly once. Every value
-                                          must be an integer from 0 to 3. Each
-                                          object describes article value per the
+                                          Return five axis objects, in this
+                                          exact order: actionability, novelty,
+                                          impact, rigor, depth. Include each
+                                          axis exactly once. Every value must be
+                                          an integer from 0 to 3. Each object
+                                          describes article value per the
                                           semantics defined below:\r
 
                                           - 'axis':\r
@@ -787,6 +644,7 @@ value:
 
                                           ${results.mditem.content}`"
                                     tools: []
+                                  continue_on_error: false
                                 - id: k
                                   summary: Assemble Note
                                   value:
@@ -830,7 +688,7 @@ value:
                           expr: results.feed.item_handles
                         parallel: false
                         skip_failures: true
-                        squash: true
+                        squash: false
                   expr: results.feed.item_handles.length > 0
                   parallel: true
                   skip_failure: true
@@ -847,7 +705,7 @@ value:
           expr: results.a
         parallel: false
         skip_failures: true
-        squash: true
+        squash: false
   flow_env: {}
   groups: []
   notes: []

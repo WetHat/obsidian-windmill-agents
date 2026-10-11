@@ -1,0 +1,24 @@
+{
+  "dependencies": {
+    "windmill-client": "latest",
+    "marked": "latest"
+  }
+}
+//bun.lock
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "marked": "latest",
+        "windmill-client": "latest",
+      },
+    },
+  },
+  "packages": {
+    "marked": ["marked@18.1.0", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-PamYXWWWg2nboG3oX5Ffzpy3EFZROqZJK9hSlMmUnekp7TxPs5DcT95vwd46m73/exfKCRVMtgXoPMI4FEJL6w=="],
+
+    "windmill-client": ["windmill-client@1.830.0", "", {}, "sha512-hzvepjYpdAyDrsbkvN84w2vW//KGTFi16bnFbvTJJZlgPdTsassCGiRMpDsvg0tc9Zt/kGUgfMBWMa7xbfUuxQ=="],
+  }
+}

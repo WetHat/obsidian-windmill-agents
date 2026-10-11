@@ -5,12 +5,19 @@ export interface IDomain {
   relevance: number
 }
 
-export async function main(domains: IDomain[]): Promise<IDomain> {
-  const best = domains.reduce((max, cur) => (cur.relevance > max.relevance ? cur : max), domains[0]);
+export async function main(response: { ok: boolean, text: string }): Promise<IDomain> {
+  const
+    json = JSON.parse(response.text),
+    answers = json.answers,
+    best_score = answers.reduce((max, cur) => (cur.score > max.score ? cur : max), answers[0]),
+    best_domain = {
+      domain: best_score.name,
+      relevance: Math.round(best_score.score * 20)
+    };
 
-  if (best.relevance <= 50) {
-    best.domain = 'Et Cetera';
-    best.relevance = 100 - best.relevance
+  if (best_domain.relevance <= 20) {
+    best_domain.domain = 'Et Cetera';
+    best_domain.relevance = 100 - best_domain.relevance
   }
-  return best;
+  return best_domain;
 }

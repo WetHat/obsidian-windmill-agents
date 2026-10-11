@@ -1,4 +1,4 @@
-summary: Load content from an Obsidian vault
+summary: Read content from vault
 description: ''
 lock: '!inline f/lib/load_vault_file.script.lock'
 kind: script
@@ -9,7 +9,7 @@ schema:
     extension:
       type: string
       description: ''
-      default: null
+      default: md
       originalType: string
     filename:
       type: string
@@ -21,7 +21,12 @@ schema:
       description: ''
       default: null
       originalType: string
+    vault:
+      type: string
+      description: ''
+      default: null
+      originalType: string
   required:
+    - vault
     - location
     - filename
-    - extension

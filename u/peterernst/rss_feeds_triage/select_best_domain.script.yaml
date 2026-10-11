@@ -7,21 +7,17 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
-    domains:
-      type: array
+    response:
+      type: object
       description: ''
       default: null
-      format: resource-i_domain
-      items:
-        type: object
-        properties:
-          domain:
-            type: string
-            description: ''
-            originalType: string
-          relevance:
-            type: number
-            description: ''
-      originalType: record[]
+      properties:
+        ok:
+          type: boolean
+          description: ''
+        text:
+          type: string
+          description: ''
+          originalType: string
   required:
-    - domains
+    - response
