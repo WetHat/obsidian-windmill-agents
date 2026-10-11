@@ -7,11 +7,11 @@
 
 ## What Is Here
 
-The main workflow is `u/peterernst/rss_feeds_triage`. It reads active feed definitions from the Windmill `rss` datatable, parses and normalizes items, caches them in Redis, runs two-stage AI analysis (Domain Relevance via OpenRouter DeepSeek V4.1 Flash, followed by Reading Value analysis via OpenAI GPT-5.6 Luna), and writes the resulting Markdown note into the `WetHat Lab` vault Inbox. Short-content feeds have their full articles scraped via Browserless prior to analysis, and short items below reading time thresholds are saved as plain notes without invoking the reading value model.
+The main workflow is `u/peterernst/rss_feeds_triage`. It reads active feed definitions from the Windmill `rss` datatable, parses and normalizes items, caches them in Redis, scores domain relevance through OpenAI's Decisions API (`gpt-6-luna`), and—except for short items—uses an OpenAI article-analysis agent (`gpt-6.1-sol`) to score reading value. It writes the resulting Markdown note into the `WetHat Lab` vault Inbox. Short-content feeds have their full articles scraped via Browserless before analysis; items under three minutes are saved as plain notes without running the article-analysis agent.
 
 A second production flow, `u/peterernst/scrape_markdown_article`, scrapes a single web page via a self-hosted Browserless service, extracts clean Markdown, and cleans up the Redis cache. The repository also includes note assembly and vault saving scripts for inbox integration.
 
-The repository also contains reusable vault, Markdown, RSS, Redis, and Browserless scripts, Docker service definitions (Windmill, Redis Stack, Browserless), plus regression-test flows for RSS parsing and article scraping. The `scrape_web_article` flow directories are placeholders for a planned orchestration flow; the working scrape pipeline is `scrape_markdown_article`.
+The repository also contains reusable vault, Markdown, RSS, Redis, and Browserless scripts; Docker service definitions (Windmill, Redis Stack, Browserless); RSS and scrape regression flows; and an `infer_content_type` flow.
 
 ## Architecture
 
@@ -40,11 +40,12 @@ flowchart TD
             SCRAPE_ITEM["scrape_item_article<br/>Browserless fetch & extract"]
             PASS["pass_item_thru"]
             MD["item_to_markdown<br/>HTML to Markdown & calculate TTR"]
-            AGENT1["Domain Analysis Agent<br/>OpenRouter: deepseek-v4.1-flash"]
+            PREP["prep<br/>build domain questions"]
+            SCORE["OpenAI Decisions API<br/>gpt-6-luna"]
             BEST["select_best_domain<br/>pick highest relevance (or Et Cetera)"]
             TTR_CHECK{"item.ttr < 3?"}
             PLAIN["assemble_plain_note"]
-            AGENT2["Article Analysis Agent<br/>OpenAI: gpt-5.6-luna"]
+            AGENT2["Article Analysis Agent<br/>OpenAI: gpt-6.1-sol"]
             NOTE["assemble_note<br/>reading values & highlights"]
             PICK_NOTE["note & filename"]
             SAVE["save_to_Inbox"]
@@ -72,9 +73,10 @@ flowchart TD
     SHORT -- "no" --> PASS
     SCRAPE_ITEM --> MD
     PASS --> MD
-    LD --> AGENT1
-    MD --> AGENT1
-    AGENT1 --> BEST
+    LD --> PREP
+    MD --> PREP
+    PREP --> SCORE
+    SCORE --> BEST
     BEST --> TTR_CHECK
     TTR_CHECK -- "yes (ttr < 3)" --> PLAIN
     TTR_CHECK -- "no" --> AGENT2
@@ -93,7 +95,7 @@ flowchart TD
 ### Production flow (`rss_feeds_triage`)
 
 1. `select_feeds` runs `SELECT * FROM rss_feeds WHERE suspended IS NOT TRUE` against the `rss` datatable.
-2. `load_vault_file` reads `Subject Matter Domains.md` from `WetHat Lab/Vault Backoffice/Context Data`; the file contents become the domain taxonomy in the Domain Analysis Agent's system prompt.
+2. `load_vault_file` reads `Subject Matter Domains.md` from `WetHat Lab/Vault Backoffice/Context Data`; `prep` turns its domain tables into scoring questions for the Decisions API.
 3. The outer loop iterates over the feed records sequentially (skipping failed feeds).
 4. For each feed, `read_rss_feed` fetches and parses RSS or Atom with `@extractus/feed-extractor`, normalizes authors, tags, images, media, links, and content, filters items newer than `last_scan` (or drops already seen items matching `last_item_id`), stores full item objects in Redis under `web_<feed_id>_<item_index>`, updates `last_scan` and `last_item_id` in the `rss_feeds` table, and returns a lightweight feed descriptor with `item_handles`.
 5. Feeds with no new items (`item_handles.length == 0`) branch to `drop_packet`, a no-op sink.
@@ -101,11 +103,11 @@ flowchart TD
    - **Rehydration**: `dehydrate_feed_item` retrieves the full item JSON object from Redis using the handle.
    - **Content expansion**: If `feed.short_content` is true, `scrape_item_article` fetches the full article via Browserless, extracts the main article content, and updates the item content and `ttr`. Otherwise, `pass_item_thru` passes the item unchanged.
    - **Markdown conversion**: `item_to_markdown` converts item HTML into clean Markdown and estimates reading time (`ttr` in minutes) if not already set.
-   - **Stage 1 AI (Domain Analysis)**: An AI agent (`deepseek/deepseek-v4.1-flash` via OpenRouter using resource `$res:u/peterernst/openrouter_api_key`) evaluates the article against all configured subject matter domains and outputs structured domain relevance scores (`0..100`) and analyst notes.
-   - **Domain selection**: `select_best_domain` picks the domain with highest relevance. If the top relevance is $\le 50$, the domain falls back to `'Et Cetera'` with an inverted score (`100 - relevance`).
+   - **Stage 1 AI (Domain Scoring)**: `prep` converts the configured subject-matter domain table into scoring questions. The flow sends the article and questions to the OpenAI Decisions API (`gpt-6-luna`) using the `u/peterernst/openai_api_key` variable.
+   - **Domain selection**: `select_best_domain` picks the highest-scoring domain and converts its score to a percentage. If the top relevance is $\le 20$, the domain falls back to `'Et Cetera'` with an inverted score (`100 - relevance`).
    - **Stage 2 AI or Plain Note**:
      - If estimated reading time `ttr < 3`, `assemble_plain_note` formats a clean note without running the reading value model.
-     - If `ttr >= 3`, the **Article Analysis Agent** (`gpt-5.6-luna` via OpenAI using resource `$res:u/peterernst/openai_api_key`) scores five reading-value axes (`actionability`, `novelty`, `impact`, `rigor`, `depth` from `0` to `3`), extracts key highlights, sets an expiration date, and records analyst notes. `assemble_note` calculates a weighted reading score with high-value boosts, renders frontmatter indicators (`⭕`, `⭐`, `⭐⭐`, `⭐⭐⭐`), TL;DR callout, highlights, reading value table, analyst notes, and media embeds.
+     - If `ttr >= 3`, the **Article Analysis Agent** (`gpt-6.1-sol` via the OpenAI resource `$res:u/peterernst/openai_api_key`) scores five reading-value axes (`actionability`, `novelty`, `impact`, `rigor`, `depth` from `0` to `3`), extracts key highlights, sets an expiration date, and records analyst notes. `assemble_note` calculates a weighted reading score with high-value boosts, renders frontmatter indicators (`⭕`, `⭐`, `⭐⭐`, `⭐⭐⭐`), TL;DR callout, highlights, reading value table, analyst notes, and media embeds.
    - **Vault export**: `save_to_Inbox` sanitizes the filename and saves the Markdown note under `/mnt/obsidianvaults/WetHat Lab/Inbox`.
 
 ### Scrape flow (`scrape_markdown_article`)
@@ -139,17 +141,20 @@ The `rss_feeds_triage` schedule (`u/peterernst/rss_feeds_triage.schedule.yaml`) 
 │
 ├── f/lib/                      # Shared reusable scripts and variables
 │   ├── read_rss_feed.ts        # RSS/Atom fetch, parse, normalize, Redis caching
+│   ├── extract_markdown_table_data.ts # Extract Markdown table rows
 │   ├── html_to_markdown.ts     # HTML to clean Markdown with media & link resolving
 │   ├── extract_markdown_article.ts # Main-article extraction and metadata parsing
 │   ├── scrape_web_content_browserless.ts # Browserless web scraper
 │   ├── load_vault_file.ts      # Read file from mounted Obsidian vault
 │   ├── save_to_Inbox.ts        # Save note to vault Inbox folder
 │   ├── write_to_vault.ts       # Write arbitrary file to mounted vault
-│   └── redis_client_url.variable.yaml # Redis client connection string variable
+│   ├── decisions_url.variable.yaml # OpenAI Decisions API endpoint
+│   ├── obsidianvaults.variable.yaml # Mounted vault root
+│   └── redis_client_url.variable.yaml # Redis client connection string
 │
 └── u/peterernst/
     ├── openai_api_key.resource.yaml      # OpenAI API key resource
-    ├── openrouter_api_key.resource.yaml  # OpenRouter API key resource
+    ├── openrouter_api_key.resource.yaml  # OpenRouter resource (not used by production flows)
     ├── drop_packet.ts                    # No-op sink for feeds without new items
     ├── rss_feeds_triage.schedule.yaml    # Scheduled execution configuration
     │
@@ -157,6 +162,7 @@ The `rss_feeds_triage` schedule (`u/peterernst/rss_feeds_triage.schedule.yaml`) 
     │   ├── select_feeds.pg.sql           # Query active feeds (WHERE suspended IS NOT TRUE)
     │   ├── select_hot_feeds.pg.sql       # Query feeds for scrape evaluation
     │   ├── select_best_domain.ts         # Top domain selection with fallback logic
+    │   ├── prep.ts                       # Build OpenAI Decisions API request
     │   ├── scrape_item_article.ts        # Full-text scraper for short-content items
     │   ├── dehydrate_feed_item.ts        # Rehydrate feed item from Redis
     │   ├── item_to_markdown.ts           # Markdown conversion and TTR calculation
@@ -165,7 +171,7 @@ The `rss_feeds_triage` schedule (`u/peterernst/rss_feeds_triage.schedule.yaml`) 
     │   └── q.pg.sql                      # Query helper for domain taxonomy
     │
     ├── rss_feeds_triage__flow/           # Production feed triage flow
-    │   ├── flow.yaml                     # Flow definition with two-stage AI agents
+    │   ├── flow.yaml                     # Flow definition with two-stage AI scoring
     │   ├── assemble_plain_note.ts        # Inline script for short articles (< 3 min TTR)
     │   └── pass_item_thru.ts             # Pass-through for full content items
     │
@@ -175,9 +181,7 @@ The `rss_feeds_triage` schedule (`u/peterernst/rss_feeds_triage.schedule.yaml`) 
     │   ├── flow.yaml
     │   └── finalize.ts                   # Cleanup Redis cache
     │
-    ├── scrape_web_article/               # Placeholder for planned flow
-    ├── scrape_web_article__flow/
-    ├── prodigious_flow__flow/            # Experimental flow placeholder
+    ├── infer_content_type__flow/         # Content-type inference flow
     ├── Sandbox__flow/                    # Experimental flow
     │
     └── tests/
@@ -218,9 +222,11 @@ The environment expects the following services and configurations:
   - `web_scrape_test` table (for scrape regression flows) containing: `id`, `url`, `head`, `body`, and `markdown`.
 - **Windmill Variables**:
   - `f/lib/redis_client_url`: Redis connection string (e.g. `redis://redis:6379`).
+  - `f/lib/decisions_url`: OpenAI Decisions API endpoint (defaults to `https://api.openai.com/v1/decisions`).
+  - `f/lib/obsidianvaults`: Root path for mounted vaults (defaults to `/mnt/obsidianvaults`).
 - **Windmill Resources & Secrets**:
-  - `u/peterernst/openrouter_api_key`: OpenRouter resource linked to secret variable `u/peterernst/openrouter_api_key` (used for `deepseek/deepseek-v4.1-flash`).
-  - `u/peterernst/openai_api_key`: OpenAI resource linked to secret variable `u/peterernst/openai_api_key` (used for `gpt-5.6-luna`).
+  - `u/peterernst/openai_api_key`: OpenAI resource linked to secret variable `u/peterernst/openai_api_key`; used by both domain scoring and the article-analysis agent.
+  - `u/peterernst/openrouter_api_key`: Tracked OpenRouter resource; not currently referenced by the production flows.
 - **Self-hosted Services** (Docker Compose files in `docker/` on shared network `wmnet`):
   - Redis Stack Server at `redis://redis:6379` (`docker/redis/compose.yml`).
   - Browserless Chromium service at `http://browserless:3000` with stealth mode (`docker/browserless/compose.yml`).
@@ -308,9 +314,8 @@ There is no automated root-level test command yet; `npm test` is still the place
 
 ## Current Gaps and Notes
 
-- `select_hot_feeds.pg.sql`, `download_policy.pg.sql`, and `q.pg.sql` in `u/peterernst/rss_feeds_triage` are query helpers and experimental queries not directly invoked by `rss_feeds_triage__flow`.
-- `u/peterernst/scrape_web_article`, `u/peterernst/scrape_web_article__flow`, and `u/peterernst/prodigious_flow__flow` are placeholder directories.
-- `u/peterernst/Sandbox__flow` is an experimental testing flow.
+- `select_hot_feeds.pg.sql`, `download_policy.pg.sql`, and `q.pg.sql` in `u/peterernst/rss_feeds_triage` are helper queries not directly invoked by `rss_feeds_triage__flow`.
+- `u/peterernst/infer_content_type` and `u/peterernst/Sandbox` are additional flows outside the production RSS and scrape pipelines.
 - `u/peterernst/scrape_markdown_article/assemble_note` is available for formatting standalone web articles into Obsidian callout notes before saving to Inbox.
 
 ## License
