@@ -13,7 +13,7 @@ value:
             value: datatable://rss
         is_trigger: false
         path: u/peterernst/rss_feeds_triage/select_feeds
-    - id: h
+    - id: defs
       summary: Load Subject Matter Domains
       value:
         type: script
@@ -32,6 +32,16 @@ value:
             value: WetHat Lab
         is_trigger: false
         path: f/lib/load_vault_file
+    - id: domains
+      summary: Extract subject matter domains
+      value:
+        type: script
+        input_transforms:
+          markdown:
+            type: javascript
+            expr: results.defs.data
+        is_trigger: false
+        path: f/lib/extract_markdown_table_data
     - id: b
       summary: For each rss feed
       value:
@@ -111,44 +121,48 @@ value:
                                   expr: results.content
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/item_to_markdown
-                          - id: prep
-                            summary: Prepare Domain Decision
+                          - id: ask
+                            summary: Prepare questions
                             value:
-                              type: script
+                              type: rawscript
+                              content: '!inline prepare_questions.ts'
                               input_transforms:
-                                content:
-                                  type: javascript
-                                  expr: results.mditem.content
                                 domains:
                                   type: javascript
-                                  expr: results.h.data
-                              hash: null
-                              is_trigger: false
-                              path: u/peterernst/rss_feeds_triage/prep
-                          - id: score
-                            summary: Score Domains
+                                  expr: results.domains[1]
+                              lock: '!inline prepare_questions.lock'
+                              language: bun
+                          - id: choice
+                            summary: Choose domain
                             value:
-                              type: script
+                              type: aidecision
                               input_transforms:
-                                body:
+                                provider:
+                                  type: static
+                                  value:
+                                    kind: openai
+                                    model: gpt-6-luna
+                                    resource: $res:u/peterernst/openai_api_key
+                                questions:
                                   type: javascript
-                                  expr: results.prep.body
-                                headers:
+                                  value:
+                                    intent:
+                                      type: choice
+                                      criteria: {}
+                                      instructions: What does the message ask for?
+                                  expr: results.ask
+                                state:
                                   type: javascript
-                                  expr: results.prep.headers
-                                url:
-                                  type: javascript
-                                  expr: results.prep.url
-                              is_trigger: false
-                              path: hub/11643/http/send_post_request
+                                  value: null
+                                  expr: results.mditem.content
                           - id: best
                             summary: Select best domain
                             value:
                               type: script
                               input_transforms:
-                                response:
+                                output:
                                   type: javascript
-                                  expr: results.score
+                                  expr: results.choice.output
                               is_trigger: false
                               path: u/peterernst/rss_feeds_triage/select_best_domain
                           - id: ttr
@@ -304,7 +318,7 @@ value:
                                         value:
                                           kind: openai
                                           model: gpt-6.1-sol
-                                          reasoning_effort: medium
+                                          reasoning_effort: low
                                           resource: $res:u/peterernst/openai_api_key
                                       streaming:
                                         type: static
