@@ -1,5 +1,6 @@
 summary: Scrape web article
-description: Scrape a web page article as Markdown
+description: Provide a webpage URL to scrape its content and extract the main
+  article as Markdown. The flow returns the extracted article.
 value:
   modules:
     - id: scrape
