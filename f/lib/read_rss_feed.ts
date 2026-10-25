@@ -34,7 +34,8 @@ export interface IFeedRecord {
    */
   last_item_id: string | null,
   /**
-   * The maximum number of items to retrieve for this feed.
+   * The maximum number of items to retrieve for this feed. Negative limits
+   * retrieve items from the end of the feed
    */
   item_limit: number,
   /**
