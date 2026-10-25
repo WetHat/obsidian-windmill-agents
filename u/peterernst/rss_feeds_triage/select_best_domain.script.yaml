@@ -7,17 +7,21 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   properties:
-    response:
+    output:
       type: object
       description: ''
       default: null
       properties:
-        ok:
-          type: boolean
+        domain:
+          type: object
           description: ''
-        text:
-          type: string
-          description: ''
-          originalType: string
+          properties:
+            choice:
+              type: string
+              description: ''
+              originalType: string
+            confidence:
+              type: number
+              description: ''
   required:
-    - response
+    - output
