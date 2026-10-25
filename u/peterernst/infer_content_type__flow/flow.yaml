@@ -1,5 +1,7 @@
-summary: Infer Content Type
-description: ''
+summary: Infer content type
+description: Classifies Markdown content by choosing a best-fit content type.
+  Provide Markdown text as `content`; the selected type is returned as
+  `content_type.choice` with `content_type.confidence` .
 value:
   modules:
     - id: types
@@ -21,7 +23,7 @@ value:
             value: WetHat Lab
         is_trigger: false
         path: f/lib/load_vault_file
-    - id: definitions
+    - id: defs
       summary: Extract type definitions
       value:
         type: script
@@ -31,46 +33,54 @@ value:
             expr: results.types.data
         is_trigger: false
         path: f/lib/extract_markdown_table_data
-    - id: prepare
-      summary: Prepare Choice Request
+    - id: ask
+      summary: Prepare questions
       value:
         type: rawscript
-        content: '!inline prepare_choice_request.ts'
+        content: '!inline prepare_questions.ts'
         input_transforms:
-          content:
+          types:
             type: javascript
-            expr: flow_input.content
-          table_data:
-            type: javascript
-            expr: results.definitions
-        lock: '!inline prepare_choice_request.lock'
+            expr: results.defs[0]
+        lock: '!inline prepare_questions.lock'
         language: bun
-    - id: decide
-      summary: Request Decision
+    - id: choice
+      summary: ''
       value:
-        type: script
+        type: aidecision
         input_transforms:
-          body:
+          provider:
+            type: static
+            value:
+              kind: openai
+              model: gpt-6-luna
+              resource: $res:u/peterernst/openai_api_key
+          questions:
             type: javascript
-            expr: results.prepare.body
-          headers:
+            value:
+              intent:
+                type: choice
+                criteria:
+                  action: Something to be done
+                  other: Anything else
+                  question: An answer to a question
+                instructions: What does the message ask for?
+            expr: results.ask
+          state:
             type: javascript
-            expr: results.prepare.headers
-          url:
-            type: javascript
-            expr: results.prepare.url
-        is_trigger: false
-        path: hub/11643/http/send_post_request
-    - id: parse
-      summary: Parse Answers
+            value: null
+            expr: flow_input.content
+      continue_on_error: false
+    - id: shape
+      summary: Shape response
       value:
         type: rawscript
-        content: '!inline parse_answers.ts'
+        content: '!inline shape_response.ts'
         input_transforms:
-          x:
+          output:
             type: javascript
-            expr: results.decide
-        lock: '!inline parse_answers.lock'
+            expr: results.choice.output
+        lock: '!inline shape_response.lock'
         language: bun
   groups: []
 schema:
