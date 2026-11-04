@@ -1,0 +1,64 @@
+summary: Image Factory Chat
+description: "Chat-enabled flow. Each chat turn is one run. The step loads every
+  earlier turn of the conversation (keyed by the run's memory_id) from the
+  image_cache datatable, calls OpenRouter (google/gemini-3.1-flash-image) with
+  the previous image attached so the model edits it instead of starting over,
+  stores the new turn, and returns the image to the chat. No S3 is used: the
+  image travels as a base64 data URL."
+value:
+  modules:
+    - id: image_turn
+      summary: Generate or refine the image for this chat turn
+      value:
+        type: rawscript
+        content: '!inline generate_or_refine_the_image_for_this_chat_turn.ts'
+        input_transforms:
+          memory_id:
+            type: javascript
+            expr: flow_input.memory_id
+          user_message:
+            type: javascript
+            expr: flow_input.user_message
+        lock: '!inline generate_or_refine_the_image_for_this_chat_turn.lock'
+        language: bun
+  chat_input_enabled: true
+  notes:
+    - id: about
+      type: free
+      color: blue
+      locked: false
+      position:
+        x: 166
+        y: -2
+      size:
+        height: 334
+        width: 343
+      text: >-
+        Chat flow: one run per turn.
+
+
+        - `memory_id` (the chat conversation) keys the turn history in
+        `image_cache.public.image_factory_turns`.
+
+        - Every turn sends the previous turn's image back to OpenRouter
+        (`google/gemini-3.1-flash-image`) so the model edits that image instead
+        of starting over.
+
+        - No S3: the image travels as a base64 data URL and is returned under
+        the `jpeg` rich-result key, which the chat renders inline.
+
+        - The image is downscaled before being returned; the chat rejects
+        oversized results.
+schema:
+  type: object
+  properties:
+    memory_id:
+      type: string
+      description: Conversation id. Supplied by the chat runtime on every turn;
+        identifies which image is being refined.
+    user_message:
+      type: string
+      description: 'Chat turn: what to create on the first message, what to change on
+        later ones.'
+  required:
+    - user_message
