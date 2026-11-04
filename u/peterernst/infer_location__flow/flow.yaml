@@ -1,0 +1,91 @@
+summary: Infer the best-fit location of content in a folder tree
+description: ''
+value:
+  modules:
+    - id: a
+      summary: Read folder tree
+      value:
+        type: script
+        input_transforms:
+          extension:
+            type: static
+            value: md
+          filename:
+            type: static
+            value: Folders
+          location:
+            type: static
+            value: Vault Backoffice
+          vault:
+            type: static
+            value: WetHat Lab
+        is_trigger: false
+        path: f/lib/load_vault_file
+    - id: c
+      summary: Prepare decision
+      value:
+        type: rawscript
+        content: '!inline prepare_decision.ts'
+        input_transforms:
+          folders:
+            type: javascript
+            expr: results.a.data
+        lock: '!inline prepare_decision.lock'
+        language: bun
+    - id: b
+      summary: ''
+      value:
+        type: aidecision
+        input_transforms:
+          provider:
+            type: static
+            value:
+              kind: openai
+              model: gpt-6-luna
+              resource: $res:u/peterernst/openai_api_key
+          questions:
+            type: javascript
+            value:
+              location:
+                type: choice
+                criteria:
+                  a: a
+                  a/b: a/b
+                  a/c: a/c
+                instructions: >-
+                  Which taxonomy path represents the primary long-term knowledge
+                  home of the provided content?
+
+                  Evaluate the semantic intent, purpose, and retrieval value of
+                  the content rather than matching keywords.
+
+                  Prefer the path where a future reader would most naturally
+                  search for this information.
+
+                  Choose the most specific applicable path.
+
+                  Avoid selecting a path solely because terminology overlaps.
+
+                  When multiple paths appear relevant, prefer the path that best
+                  represents what the content is fundamentally about.
+
+                  If no path is a strong fit, select the closest path and reduce
+                  confidence.
+            expr: results.c
+          state:
+            type: javascript
+            value: null
+            expr: flow_input.content
+  groups: []
+schema:
+  order:
+    - content
+  properties:
+    content:
+      type: string
+      description: Markdown content to find the best folder location for.
+      default: ''
+      nullable: false
+      title: Content
+  required:
+    - content
