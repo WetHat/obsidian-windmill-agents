@@ -2,31 +2,150 @@ summary: Sandbox
 description: ''
 value:
   modules:
-    - id: a
+    - id: l
+      summary: ''
       value:
-        type: rawscript
-        content: '!inline a.ts'
+        type: aidecision
         input_transforms:
-          a:
+          provider:
             type: static
             value:
-              - Hello
-              - otto
-              - oma
-          b:
+              kind: openai
+              model: gpt-6-luna
+              resource: $res:u/peterernst/openai_api_key
+          questions:
             type: static
-            value: 5
-        lock: '!inline a.lock'
-        language: bun
-    - id: b
+            value:
+              question_1:
+                type: noul
+                criteria:
+                  'false': this
+                  'true': that
+                instructions: some predicate
+          state:
+            type: static
+            value: null
+    - id: a
+      summary: Load Subject Matter Domains
+      value:
+        type: script
+        input_transforms:
+          extension:
+            type: static
+            value: md
+          filename:
+            type: static
+            value: Subject Matter Domains
+          location:
+            type: static
+            value: Vault Backoffice/Context Data
+          vault:
+            type: static
+            value: WetHat Lab
+        is_trigger: false
+        path: f/lib/load_vault_file
+    - id: j
+      summary: Extract tables
+      value:
+        type: script
+        input_transforms:
+          markdown:
+            type: javascript
+            value: ''
+            expr: results.a.data
+        hash: null
+        is_trigger: false
+        path: u/peterernst/Sandbox/j
+    - id: c
+      summary: Fetch 1 item
       value:
         type: rawscript
-        content: '!inline b.ts'
+        content: '!inline fetch_1_item.ts'
+        input_transforms:
+          feed_id:
+            type: static
+            value: 1
+          item_indices:
+            type: static
+            value:
+              - 0
+        assets:
+          - access_type: r
+            kind: datatable
+            path: rss/test_feeds
+        lock: '!inline fetch_1_item.lock'
+        language: bun
+    - id: d
+      summary: Dehydrate 1 Item
+      value:
+        type: rawscript
+        content: '!inline dehydrate_1_item.ts'
+        input_transforms:
+          handle:
+            type: javascript
+            expr: results.c
+        lock: '!inline dehydrate_1_item.lock'
+        language: bun
+    - id: g
+      summary: Item -> Markdown
+      value:
+        type: script
+        input_transforms:
+          item:
+            type: javascript
+            value: {}
+            expr: results.d
+        is_trigger: false
+        path: u/peterernst/rss_feeds_triage/item_to_markdown
+    - id: i
+      summary: Prepare Decision
+      value:
+        type: rawscript
+        content: '!inline prepare_decision.ts'
+        input_transforms:
+          content:
+            type: javascript
+            expr: results.g.content
+          ctx_tables:
+            type: javascript
+            expr: results.j
+        lock: '!inline prepare_decision.lock'
+        language: bun
+    - id: h
+      summary: Make decision
+      value:
+        type: script
+        input_transforms:
+          body:
+            type: javascript
+            value: null
+            expr: results.i.body
+          headers:
+            type: javascript
+            value: {}
+            expr: results.i.headers
+          url:
+            type: javascript
+            expr: '"$var:f/lib/decisions_url"'
+        is_trigger: false
+        path: hub/11643/http/send_post_request
+    - id: k
+      summary: Parse answers
+      value:
+        type: rawscript
+        content: '!inline parse_answers.ts'
         input_transforms:
           x:
             type: javascript
-            expr: "`${results.a.a.map(s=>'| ' + s + ' |').join('\\t')} ---- ${results.a.b}`"
-        lock: '!inline b.lock'
+            expr: results.h.text
+        lock: '!inline parse_answers.lock'
         language: bun
   groups: []
-schema: {}
+schema:
+  order:
+    - n
+  properties:
+    n:
+      type: number
+      description: ''
+  required: []
