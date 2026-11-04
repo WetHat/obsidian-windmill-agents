@@ -1,0 +1,197 @@
+summary: Evaluate operational skill quality
+description: >-
+  Evaluate a skill's operational quality using configured negative
+  (bad-pattern), positive (good-pattern) predicates, and an inventory of
+  available tools
+
+  .
+
+  ## Output contract
+
+
+  Returns `{ ok, status, answers: { negative, positive } }`.
+
+
+  ### HTTP Status
+
+  - `ok` and `status` are passed through from the upstream HTTP response.
+
+
+  ### Answers
+
+  - `answers.negative` -  negative answers sorted, starting with the highest
+  negative scores.
+
+  - `answers.positive` -positive answers sorted, starting with the weakest
+  good-pattern scores.
+
+
+  ### Answer entries
+
+  Each entry in either `scores` array contains:
+
+  - `name`: configured predicate identifier.
+
+  - `predicate`: canonical predicate text .
+
+  - `score`: [0.0,1.0]. Activation strength of predicate
+value:
+  modules:
+    - id: g
+      summary: ''
+      value:
+        type: branchall
+        branches:
+          - summary: Fetch Input data
+            modules:
+              - id: skill
+                summary: Read skill
+                value:
+                  type: script
+                  input_transforms:
+                    extension:
+                      type: static
+                      value: md
+                    filename:
+                      type: static
+                      value: SKILL
+                    location:
+                      type: javascript
+                      expr: '`copilot/skills/${flow_input.skill_name}`'
+                    vault:
+                      type: javascript
+                      expr: flow_input.vault
+                  is_trigger: false
+                  path: f/lib/load_vault_file
+            expr: ''
+            parallel: true
+            skip_failure: false
+          - summary: Fetch operational quality predicates
+            modules:
+              - id: b
+                summary: Read operational quality predicates
+                value:
+                  type: script
+                  input_transforms:
+                    extension:
+                      type: static
+                      value: md
+                    filename:
+                      type: static
+                      value: Skill Operational Quality Predicates
+                    location:
+                      type: static
+                      value: Vault Backoffice/Context Data
+                    vault:
+                      type: static
+                      value: WetHat Lab
+                  is_trigger: false
+                  path: f/lib/load_vault_file
+              - id: predicates
+                summary: Extract table data
+                value:
+                  type: script
+                  input_transforms:
+                    markdown:
+                      type: javascript
+                      expr: results.b.data
+                  is_trigger: false
+                  path: f/lib/extract_markdown_table_data
+            expr: 'false'
+            parallel: true
+            skip_failure: false
+          - summary: Fetch inventory of tools and sklills
+            modules:
+              - id: inventory
+                summary: Tool and skill inventory
+                value:
+                  type: script
+                  input_transforms:
+                    extension:
+                      type: static
+                      value: json
+                    filename:
+                      type: static
+                      value: Tool and Skill Inventory
+                    location:
+                      type: static
+                      value: Vault Backoffice/Context Data
+                    vault:
+                      type: static
+                      value: WetHat Lab
+                  is_trigger: false
+                  path: f/lib/load_vault_file
+            expr: 'false'
+            parallel: true
+            skip_failure: false
+        parallel: true
+    - id: d
+      summary: Build Request
+      value:
+        type: rawscript
+        content: '!inline build_request.ts'
+        input_transforms:
+          inventory:
+            type: javascript
+            expr: results.inventory.data
+          skill:
+            type: javascript
+            expr: results.skill.data
+          tables:
+            type: javascript
+            expr: results.predicates
+        lock: '!inline build_request.lock'
+        language: bun
+    - id: e
+      summary: Send POST Request (http)
+      value:
+        type: script
+        input_transforms:
+          body:
+            type: javascript
+            expr: results.d.body
+          headers:
+            type: javascript
+            expr: results.d.headers
+          url:
+            type: javascript
+            expr: results.d.url
+        is_trigger: false
+        path: hub/11643/http/send_post_request
+    - id: scores
+      summary: Compile operational quality scores
+      value:
+        type: rawscript
+        content: '!inline compile_operational_quality_scores.ts'
+        input_transforms:
+          tables:
+            type: javascript
+            expr: results.predicates
+          x:
+            type: javascript
+            expr: results.e
+        lock: '!inline compile_operational_quality_scores.lock'
+        language: bun
+  groups: []
+schema:
+  order:
+    - vault
+    - skill_name
+  properties:
+    skill_name:
+      type: string
+      description: Name of the folder containing the skill
+      default: ''
+      nullable: false
+      placeholder: name of skill folder under copilot/skills
+      title: Skill Name
+    vault:
+      type: string
+      description: Name of the vault that contains the Copilot
+      default: ''
+      nullable: false
+      title: Vault
+  required:
+    - vault
+    - skill_name
+tag: bun
