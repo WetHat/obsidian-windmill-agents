@@ -1,7 +1,8 @@
 summary: Infer content type
 description: Classifies Markdown content by choosing a best-fit content type.
   Provide Markdown text as `content`; the selected type is returned as
-  `content_type.choice` with `content_type.confidence` .
+  `content_type.choice` with `content_type.confidence` . Additionally the
+  `probabilities` array contains the probabilities of all available choices.
 value:
   modules:
     - id: types
