@@ -1,0 +1,10 @@
+description: MinIO S3 buckets for binary data storage
+value:
+  accessKey: windmill
+  bucket: ai-images
+  endPoint: http://minio:9000
+  pathStyle: true
+  region: ''
+  secretKey: wm937412
+  useSSL: false
+resource_type: s3
