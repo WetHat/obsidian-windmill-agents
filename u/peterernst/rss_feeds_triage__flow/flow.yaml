@@ -33,7 +33,7 @@ value:
         is_trigger: false
         path: f/lib/load_vault_file
     - id: domains
-      summary: Extract subject matter domains
+      summary: Extract domain table
       value:
         type: script
         input_transforms:
