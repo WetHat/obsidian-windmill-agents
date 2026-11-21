@@ -68,7 +68,9 @@ const allowedTags: string[] = [
   "label",
   "abbr",
   "a",
-  "svg"
+  "svg",
+  "header",
+  "abc-text",
 ];
 
 const allowedAttributes: Record<string, string[]> = {
@@ -308,7 +310,7 @@ const tm: Transformation = {
     const body = document.documentElement;
     console.log(`HTML post-processing started: content ${body.outerHTML.length}`);
     flattenTables(document.body);
-    console.log(`postprocessed content ${body.outerHTML.length}`);
+    console.log(`!!!postprocessed content ${body.outerHTML.length}:`);
     return document;
   }
 };
@@ -563,7 +565,12 @@ export async function extract_markdown_article(source: string, head: string, bod
 
   const article: IArticle = await extract_article(source, head, body);
   // replace HTML with Markdown content
-  article.article = convert_to_markdown(`<html><head>${head}</head><body>${article.article ?? "-"}</body></html>`, source);
+  try {
+    article.article = convert_to_markdown(`<html><head>${head}</head><body>${article.article ?? "-"}</body></html>`, source);
+  } catch (err) {
+    console.error(`convert_to_markdown failed for "${source}"`, err instanceof Error ? (err.stack ?? err.message) : err);
+    throw err;
+  }
 
   return article
 }
