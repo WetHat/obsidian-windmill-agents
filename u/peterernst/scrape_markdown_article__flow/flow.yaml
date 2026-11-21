@@ -1,6 +1,8 @@
 summary: Scrape web article
-description: Provide a webpage URL to scrape its content and extract the main
-  article as Markdown. The flow returns the extracted article.
+description: 'Provide a webpage URL to scrape its content and extract the main
+  article as Markdown. The flow returns an object with these properties: `ttr`:
+  time to read (minutes);  `source`: url of the article; `article`: article
+  content (Markdown); `frontmatter`: article metadata (OpenGraph)'
 value:
   modules:
     - id: scrape
