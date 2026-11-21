@@ -2,150 +2,81 @@ summary: Sandbox
 description: ''
 value:
   modules:
-    - id: l
-      summary: ''
+    - id: m
+      summary: Image Forge
       value:
-        type: aidecision
+        type: aiagent
         input_transforms:
+          enabled_tools:
+            type: static
+            value: null
+          max_completion_tokens:
+            type: static
+            value: null
+          max_iterations:
+            type: static
+            value: 10
+          memory:
+            type: static
+            value:
+              kind: compaction
+          output_schema:
+            type: static
+            value: null
+          output_type:
+            type: static
+            value: image
           provider:
             type: static
             value:
-              kind: openai
-              model: gpt-6-luna
-              resource: $res:u/peterernst/openai_api_key
-          questions:
+              kind: openrouter
+              model: google/gemini-3.1-flash-image
+              resource: $res:u/peterernst/openrouter_api_key
+          streaming:
             type: static
-            value:
-              question_1:
-                type: noul
-                criteria:
-                  'false': this
-                  'true': that
-                instructions: some predicate
-          state:
+            value: true
+          system_prompt:
+            type: static
+            value: "You generate and edit one single image across a multi-turn
+              conversation.\r
+
+              Turn 1: create the image described by the user. \r
+
+              Every later turn: apply only the change the user asks for to the
+              image attached in the message,\r
+
+              and keep every other element unchanged. Keep subject, composition
+              and style consistent unless the user changes them.\r
+
+              Always return an image."
+          temperature:
             type: static
             value: null
-    - id: a
-      summary: Load Subject Matter Domains
-      value:
-        type: script
-        input_transforms:
-          extension:
-            type: static
-            value: md
-          filename:
-            type: static
-            value: Subject Matter Domains
-          location:
-            type: static
-            value: Vault Backoffice/Context Data
-          vault:
-            type: static
-            value: WetHat Lab
-        is_trigger: false
-        path: f/lib/load_vault_file
-    - id: j
-      summary: Extract tables
-      value:
-        type: script
-        input_transforms:
-          markdown:
+          user_attachments:
             type: javascript
-            value: ''
-            expr: results.a.data
-        hash: null
-        is_trigger: false
-        path: u/peterernst/Sandbox/j
-    - id: c
-      summary: Fetch 1 item
-      value:
-        type: rawscript
-        content: '!inline fetch_1_item.ts'
-        input_transforms:
-          feed_id:
-            type: static
-            value: 1
-          item_indices:
-            type: static
-            value:
-              - 0
-        assets:
-          - access_type: r
-            kind: datatable
-            path: rss/test_feeds
-        lock: '!inline fetch_1_item.lock'
-        language: bun
-    - id: d
-      summary: Dehydrate 1 Item
-      value:
-        type: rawscript
-        content: '!inline dehydrate_1_item.ts'
-        input_transforms:
-          handle:
+            expr: flow_input.files
+          user_message:
             type: javascript
-            expr: results.c
-        lock: '!inline dehydrate_1_item.lock'
-        language: bun
-    - id: g
-      summary: Item -> Markdown
-      value:
-        type: script
-        input_transforms:
-          item:
-            type: javascript
-            value: {}
-            expr: results.d
-        is_trigger: false
-        path: u/peterernst/rss_feeds_triage/item_to_markdown
-    - id: i
-      summary: Prepare Decision
-      value:
-        type: rawscript
-        content: '!inline prepare_decision.ts'
-        input_transforms:
-          content:
-            type: javascript
-            expr: results.g.content
-          ctx_tables:
-            type: javascript
-            expr: results.j
-        lock: '!inline prepare_decision.lock'
-        language: bun
-    - id: h
-      summary: Make decision
-      value:
-        type: script
-        input_transforms:
-          body:
-            type: javascript
-            value: null
-            expr: results.i.body
-          headers:
-            type: javascript
-            value: {}
-            expr: results.i.headers
-          url:
-            type: javascript
-            expr: '"$var:f/lib/decisions_url"'
-        is_trigger: false
-        path: hub/11643/http/send_post_request
-    - id: k
-      summary: Parse answers
-      value:
-        type: rawscript
-        content: '!inline parse_answers.ts'
-        input_transforms:
-          x:
-            type: javascript
-            expr: results.h.text
-        lock: '!inline parse_answers.lock'
-        language: bun
+            expr: flow_input.user_message
+        tools: []
+  chat_input_enabled: true
   groups: []
 schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
   order:
-    - n
+    - user_message
+    - files
   properties:
-    n:
-      type: number
-      description: ''
-  required: []
+    files:
+      type: array
+      description: Images or PDFs for the agent to read
+      items:
+        type: object
+        resourceType: s3object
+    user_message:
+      type: string
+      description: Message from user
+      default: ''
+  required:
+    - user_message

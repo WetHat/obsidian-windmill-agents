@@ -1,0 +1,354 @@
+summary: Request audit and clarification questionnaire
+description: Review a request before it is sent to another agent, checking it
+  against available artifacts and resolved references for ambiguities,
+  contradictions, missing requirements, unresolved references, or context
+  mismatches. It returns a JSON object containing any clarification questions,
+  each with a gain level, reason, and default assumption, or an empty question
+  list if no clarification is needed. Use it to surface all defects worth asking
+  about while ensuring a no-answer path always exists.
+value:
+  modules:
+    - id: a
+      summary: Request Auditor
+      value:
+        type: aiagent
+        input_transforms:
+          enabled_tools:
+            type: static
+            value: null
+          max_completion_tokens:
+            type: static
+            value: null
+          max_iterations:
+            type: static
+            value: null
+          memory:
+            type: static
+            value:
+              kind: off
+          output_schema:
+            type: static
+            value:
+              $schema: https://json-schema.org/draft/2020-12/schema
+              type: object
+              order:
+                - questions
+              properties:
+                questions:
+                  type: array
+                  description: Clarification questions
+                  default: []
+                  items:
+                    type: object
+                    properties:
+                      default_assumption:
+                        type: string
+                        description: The assumption that will be used when the question is not answered
+                        default: ''
+                      gain:
+                        type: string
+                        description: Information gain of answering the question. critical | high |
+                          medium | low
+                        default: ''
+                        enum:
+                          - critical
+                          - high
+                          - medium
+                          - low
+                      question:
+                        type: string
+                        description: Question to ask to resolve the request deficiency
+                        default: ''
+                        placeholder: What is ...
+                      reason:
+                        type: string
+                        description: The reason the question is asked
+                        default: ''
+                    required:
+                      - gain
+                      - reason
+                      - question
+                      - default_assumption
+              required:
+                - questions
+          output_type:
+            type: static
+            value: null
+          provider:
+            type: static
+            value:
+              kind: openai
+              model: gpt-6.1-terra
+              reasoning_effort: high
+              resource: $res:u/peterernst/openai_api_key
+          streaming:
+            type: static
+            value: true
+          system_prompt:
+            type: static
+            value: "Task:\r
+
+              Determine whether a request to another agent contains\r
+
+              ambiguities, contradictions, missing requirements,\r
+
+              unresolved references, or context mismatches.\r
+
+              \r
+
+              \r
+
+              Analyze:\r
+
+              1. The user request.\r
+
+              2. Available artifacts.\r
+
+              3. Resolved references.\r
+
+              4. Resolved references with confidence >= 0.7 count as resolved:
+              do not ask about them. Below 0.7 the reference is unresolved and
+              may justify a question.\r
+
+              \   The artifact list is complete: a reference the request uses to
+              identify an artifact, and that is absent from it, is unresolved
+              and may justify a question.\r
+
+              \   An artifact entry resolves everything the request reaches
+              through it: a file, folder, tag or link may contain, link or list
+              any number of further items, and those belong to that artifact
+              rather than being separate artifacts. Items reached through a
+              resolved artifact are never unresolved and never missing
+              artifacts: do not ask about their existence, contents or
+              accessibility, and do not ask the requester to supply them.\r
+
+              \r
+
+              Constraints:\r
+
+              - Report every question that resolves a defect, whatever its gain,
+              including medium and low.\r
+
+              - Do not filter, rank out or withhold questions by gain; the
+              caller decides which to ask.\r
+
+              - Do not ask about information already present in the request or
+              the artifacts.\r
+
+              - Prefer proceeding with reasonable assumptions; supply
+              default_assumption for every question reported so a no-answer path
+              always exists.\r
+
+              - A decision the request leaves to the agent is not information
+              already present in it: report a question whenever the request
+              gives no standard, mode or bound for that decision.\r
+
+              - An unstated standard for an evaluative term (\"accurate\",
+              \"correct\", \"current\", \"complete\") is a missing requirement:
+              report a question naming the standards the request and artifacts
+              imply (published vendor figures, the requester's own measurements,
+              internal consistency of the artifact).\r
+
+              - An unstated mode for an operative verb (\"make it\", \"fix it\",
+              \"update it\", \"rewrite it\", \"review it\") is a missing
+              requirement: report a question asking whether the result is
+              applied in place or proposed as a diff for approval.\r
+
+              - A discretion qualifier (\"where necessary\", \"where
+              appropriate\", \"if needed\", \"as required\") is an ambiguity:
+              report a question asking whether the change stays within
+              correcting the defects found or also extends the content.\r
+
+              \r
+
+              Directives:\r
+
+              \r
+
+              For every proposed question:\r
+
+              - set \"gain\" to one of: critical | high | medium | low\r
+
+              \  critical: proceeding without the answer very likely yields a
+              wrong or unusable result\r
+
+              \  high: proceeding without the answer likely forces rework\r
+
+              \  medium: the answer improves quality, the result stays usable\r
+
+              \  low: context only, no effect on the result\r
+
+              - reason: name the defect (ambiguity, contradiction, missing
+              requirement, unresolved reference, context mismatch) and state
+              what goes wrong if it stays unresolved. Do not restate the
+              question.\r
+
+              - question: one self-contained question addressed to the
+              requester, answerable from the request and artifacts alone. No
+              compound or multi-part questions.\r
+
+              - default_assumption: the concrete value or choice applied when
+              the question is not answered. Never a restatement of the question
+              and never \"unknown\".\r
+
+              - Report one entry per defect; merge duplicates that share a
+              defect and answer.\r
+
+              - Order the array by gain, highest first.\r
+
+              \r
+
+              Output:\r
+
+              Return only one JSON object: {\"questions\": [...]}.\r
+
+              Each element carries exactly: gain, reason, question,
+              default_assumption.\r
+
+              When no question is needed, return {\"questions\": []}.\r
+
+              No prose, no markdown, no additional fields."
+          temperature:
+            type: static
+            value: null
+          user_attachments:
+            type: static
+            value: null
+          user_message:
+            type: javascript
+            expr: "`\r
+
+              REQUEST\r
+
+              \r
+
+              ~~~~~\r
+
+              ${flow_input.request}\r
+
+              ~~~~~\r
+
+              \r
+
+              AVAILABLE_ARTIFACTS\r
+
+              \r
+
+              | id | name | type |\r
+
+              | -- | ---- | ---- |\r
+
+              ${(flow_input.available_artifacts.length ?
+              flow_input.available_artifacts :
+              [{id:'(none)',name:'-',type:'-'}]).map(a => `| ${a.id} | ${a.name}
+              | ${a.type} |`).join(`\\n`)}\r
+
+              \r
+
+              RESOLVED_REFERENCES\r
+
+              \r
+
+              | phrase | artifact | confidence |\r
+
+              | ------ | -------- | ---------- |\r
+
+              ${(flow_input.resolved_references.length ?
+              flow_input.resolved_references :
+              [{phrase:'(none)',artifact_id:'-',confidence:'-'}]).map(r => `|
+              ${r.phrase} | ${r.artifact_id} | ${r.confidence}
+              |`).join(`\\n`)}\r
+
+              `"
+        tools: []
+    - id: b
+      summary: Finalize result
+      value:
+        type: rawscript
+        content: '!inline finalize_result.ts'
+        input_transforms:
+          response:
+            type: javascript
+            expr: results.a.output
+        lock: '!inline finalize_result.lock'
+        language: bun
+  chat_input_enabled: false
+  groups: []
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - request
+    - available_artifacts
+    - resolved_references
+  properties:
+    available_artifacts:
+      type: array
+      description: Artifacts (e.g. files, folders, urls) available in the callers context
+      default: []
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            description: A unique id used for referencing the artifact
+            default: ''
+            placeholder: xy5
+            title: Artifact ID
+          type:
+            type: string
+            description: ''
+            default: ''
+            disableCreate: true
+            enum:
+              - file
+              - folder
+              - tag
+              - link
+            enumLabels:
+              file: ' data file'
+              folder: relative folder path
+              link: web resource url
+              tag: tag name
+          name:
+            type: string
+            description: Artifact name (e.g. file/folder name, url, etc)
+            default: ''
+            placeholder: x.md
+            title: Artifact Name
+      nullable: false
+      title: Artifacts in the caller's context
+    request:
+      type: string
+      description: A user prompt
+      default: ''
+      nullable: false
+      placeholder: Do this ...
+      title: 'User prompt '
+    resolved_references:
+      type: array
+      description: References to artifacts that were inferred by analyzing the request
+      default: []
+      items:
+        type: object
+        properties:
+          artifact_id:
+            type: string
+            description: The unique artifact identifier
+            default: ''
+            placeholder: x25
+            title: Artifact ID
+          confidence:
+            type: number
+            description: ''
+            default: 0
+            max: 1
+            min: 0
+          phrase:
+            type: string
+            description: A phrase identifying an artifact
+            default: ''
+            nullable: false
+            placeholder: This note
+  required:
+    - request
