@@ -317,8 +317,8 @@ value:
                                         type: static
                                         value:
                                           kind: openai
-                                          model: gpt-6.1-sol
-                                          reasoning_effort: low
+                                          model: gpt-6.1-terra
+                                          reasoning_effort: high
                                           resource: $res:u/peterernst/openai_api_key
                                       streaming:
                                         type: static
