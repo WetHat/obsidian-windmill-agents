@@ -537,7 +537,7 @@ async function build_rss_feed(feed_data: IFeed, rec: IFeedRecord, item_indices: 
         description: item_data.description ?? "🚫",
         link: item_data.link ?? "🚫",
         authors: item_data.authors,
-        published: item_data.published,
+        published: !item_data?.published.trim() ? feed_data.published : item_data.published,
         tags: item_data.tags,
         content: item_data.content ?? '🚫',
         media: item_data.media
